@@ -7,11 +7,22 @@
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.106600385830-ghqcgp86ps05p2hoibtcqcjm0l222s3t</string>
+				<string>com.googleusercontent.apps.613964178261-ndffhjrtqk2ves31gslsbbkjt4hfrhqe</string>
 			</array>
 		</dict>
 	</array>
 	<key>GIDClientID</key>
-	<string>106600385830-ghqcgp86ps05p2hoibtcqcjm0l222s3t.apps.googleusercontent.com</string>
+	<string>613964178261-ndffhjrtqk2ves31gslsbbkjt4hfrhqe.apps.googleusercontent.com</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<true/>
+		<key>UISceneConfigurations</key>
+		<dict/>
+		<key>UISupportedInterfaceOrientations</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+		</array>
+	</dict>
 </dict>
 </plist>

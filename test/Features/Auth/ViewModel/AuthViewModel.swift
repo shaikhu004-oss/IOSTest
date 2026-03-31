@@ -1,40 +1,85 @@
 import SwiftUI
 import GoogleSignIn
+import FirebaseAuth
+internal import CoreLocation
 internal import Combine
 
 @MainActor
 class AuthViewModel: ObservableObject {
     @Published var isAuthenticated: Bool = false
     
+    // Connects to your separated network logic
+    private let authService = AuthService()
+    
     func signInWithGoogle() {
-        // 1. SwiftUI needs to find the underlying "ViewController" to present the Google popup
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first,
-              let rootViewController = window.rootViewController else {
-            print("Could not find root view controller")
-            return
-        }
+              let rootViewController = window.rootViewController else { return }
         
-        // 2. Trigger the official Google Sign-In SDK
-        GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { signInResult, error in
-            // Handle if the user cancels or if there is no internet
-            if let error = error {
-                print("Error signing in: \(error.localizedDescription)")
-                return
+        Task {
+            print("📍 [AuthViewModel] Requesting location permission...")
+            let _ = await LocationManager.shared.requestLocationPermissionIfNeeded()
+            
+            GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { signInResult, error in
+                if let error = error {
+                    print("❌ [AuthViewModel] Google Sign-In Error: \(error.localizedDescription)")
+                    return
+                }
+                
+                // 1. Extract the ORIGINAL Google ID Token
+                guard let user = signInResult?.user,
+                      let googleIdToken = user.idToken?.tokenString else { return }
+                
+                let accessToken = user.accessToken.tokenString
+                
+                // 2. Local Firebase Handshake (Keeps your app's Firebase state active)
+                let credential = GoogleAuthProvider.credential(withIDToken: googleIdToken, accessToken: accessToken)
+                Auth.auth().signIn(with: credential) { authResult, error in
+                    if let error = error {
+                        print("⚠️ [AuthViewModel] Firebase Sign-In Error: \(error.localizedDescription)")
+                    } else {
+                        print("✅ [AuthViewModel] Firebase signed in locally.")
+                    }
+                }
+                
+                // 3. SEND THE GOOGLE TOKEN TO THE BACKEND
+                // We bypass the Firebase token entirely for the API request
+                Task {
+                    print("✅ [AuthViewModel] Sending Google ID Token to backend...")
+                    await self.verifyToken(idToken: googleIdToken)
+                }
+            }
+        }
+    }
+    // MARK: - Hand off to Service (THIS IS THE MISSING METHOD)
+    private func verifyToken(idToken: String) async {
+        do {
+            let success = try await authService.verifyWithBackend(idToken: idToken)
+            
+            if success {
+                self.isAuthenticated = true
+                print("✅ [AuthViewModel] User is now authenticated and routed to Home.")
+            } else {
+                print("❌ [AuthViewModel] Verification failed. Check AuthService logs for details.")
             }
             
-            // If successful, grab the user's data
-            guard let user = signInResult?.user else { return }
-            print("Successfully signed in as: \(user.profile?.name ?? "Unknown User")")
-            
-            // 3. Change the state to move the user to the Home screen
-            self.isAuthenticated = true
+        } catch {
+            print("❌ [AuthViewModel] Critical verification error: \(error.localizedDescription)")
         }
     }
     
+    // MARK: - Sign Out
     func signOut() {
-        // Tell Google to log out, then update our app's screen
         GIDSignIn.sharedInstance.signOut()
+        
+        do {
+            try Auth.auth().signOut()
+            print("ℹ️ [AuthViewModel] User signed out of Firebase.")
+        } catch {
+            print("❌ [AuthViewModel] Error signing out of Firebase: \(error.localizedDescription)")
+        }
+        
         self.isAuthenticated = false
+        print("ℹ️ [AuthViewModel] App state returned to unauthenticated.")
     }
 }
