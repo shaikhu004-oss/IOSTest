@@ -3,6 +3,7 @@ import Foundation
 struct AuthResponse: Codable {
     let success: Bool
     let data: AuthData?
+    let onboarding: Bool?
 }
 
 struct AuthData: Codable {

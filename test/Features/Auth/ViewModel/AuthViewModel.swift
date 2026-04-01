@@ -8,63 +8,46 @@ internal import Combine
 class AuthViewModel: ObservableObject {
     @Published var isAuthenticated: Bool = false
     
-    // Connects to your separated network logic
-    private let authService = AuthService()
+    // 🌟 State to control the referral popup
+    @Published var showReferralPopup: Bool = false
     
+    // Inject services
+    private let googleService = GoogleAuthService()
+    private let firebaseService = FirebaseAuthService()
+    private let backendService = AuthService()
+
     func signInWithGoogle() {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first,
-              let rootViewController = window.rootViewController else { return }
-        
         Task {
-            print("📍 [AuthViewModel] Requesting location permission...")
-            let _ = await LocationManager.shared.requestLocationPermissionIfNeeded()
-            
-            GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { signInResult, error in
-                if let error = error {
-                    print("❌ [AuthViewModel] Google Sign-In Error: \(error.localizedDescription)")
-                    return
-                }
+            do {
+                // 1. Request location (UI/UX step)
+                _ = await LocationManager.shared.requestLocationPermissionIfNeeded()
                 
-                // 1. Extract the ORIGINAL Google ID Token
-                guard let user = signInResult?.user,
-                      let googleIdToken = user.idToken?.tokenString else { return }
+                // 2. Step-by-step service calls
+                let googleResult = try await googleService.signIn()
+                let firebaseToken = try await firebaseService.signInWithGoogle(result: googleResult)
                 
-                let accessToken = user.accessToken.tokenString
+                // 3. Verify with your backend (🌟 UPDATED: Now expects a Tuple)
+                let result = try await backendService.verifyWithBackend(idToken: firebaseToken)
                 
-                // 2. Local Firebase Handshake (Keeps your app's Firebase state active)
-                let credential = GoogleAuthProvider.credential(withIDToken: googleIdToken, accessToken: accessToken)
-                Auth.auth().signIn(with: credential) { authResult, error in
-                    if let error = error {
-                        print("⚠️ [AuthViewModel] Firebase Sign-In Error: \(error.localizedDescription)")
+                // 🌟 4. Handle the successful login
+                self.isAuthenticated = result.success
+                
+                if result.success {
+                    // 🌟 5. Evaluate the onboarding flag to route the user
+                    if result.onboarding {
+                        self.showReferralPopup = true // Trigger the popup
+                        print("✅ [AuthViewModel] Onboarding is true. Showing referral popup.")
                     } else {
-                        print("✅ [AuthViewModel] Firebase signed in locally.")
+                        self.showReferralPopup = false // Keep popup hidden, go to Home
+                        print("✅ [AuthViewModel] Onboarding is false. Navigating directly to HomeView.")
                     }
+                } else {
+                    print("❌ [AuthViewModel] Verification failed. Check logs.")
                 }
                 
-                // 3. SEND THE GOOGLE TOKEN TO THE BACKEND
-                // We bypass the Firebase token entirely for the API request
-                Task {
-                    print("✅ [AuthViewModel] Sending Google ID Token to backend...")
-                    await self.verifyToken(idToken: googleIdToken)
-                }
+            } catch {
+                print("❌ Login flow failed: \(error.localizedDescription)")
             }
-        }
-    }
-    // MARK: - Hand off to Service (THIS IS THE MISSING METHOD)
-    private func verifyToken(idToken: String) async {
-        do {
-            let success = try await authService.verifyWithBackend(idToken: idToken)
-            
-            if success {
-                self.isAuthenticated = true
-                print("✅ [AuthViewModel] User is now authenticated and routed to Home.")
-            } else {
-                print("❌ [AuthViewModel] Verification failed. Check AuthService logs for details.")
-            }
-            
-        } catch {
-            print("❌ [AuthViewModel] Critical verification error: \(error.localizedDescription)")
         }
     }
     
@@ -80,6 +63,7 @@ class AuthViewModel: ObservableObject {
         }
         
         self.isAuthenticated = false
+        self.showReferralPopup = false // 🌟 Reset popup state on logout
         print("ℹ️ [AuthViewModel] App state returned to unauthenticated.")
     }
 }

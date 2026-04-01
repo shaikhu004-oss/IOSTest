@@ -4,7 +4,8 @@ internal import CoreLocation
 
 class AuthService {
     
-    func verifyWithBackend(idToken: String) async throws -> Bool {
+    // 🌟 UPDATE 1: Changed return type from Bool to (success: Bool, onboarding: Bool)
+    func verifyWithBackend(idToken: String) async throws -> (success: Bool, onboarding: Bool) {
         let urlString = "https://staging.pathpulse.ai/api/auth/v2/auth/login"
         guard let url = URL(string: urlString) else {
             print("❌ [AuthService] Error: Invalid URL")
@@ -53,14 +54,14 @@ class AuthService {
         if let locationDict = locationDict {
             payload["location"] = locationDict
         }
-
+        
         // --- PRINT THE PAYLOAD TO VERIFY ---
         if let payloadData = try? JSONSerialization.data(withJSONObject: payload, options: .prettyPrinted),
            let payloadString = String(data: payloadData, encoding: .utf8) {
             print("🚀 [AuthService] Outgoing Payload:\n\(payloadString)")
         }
         // ------------------------------------
-
+        
         request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
         
         do {
@@ -68,7 +69,7 @@ class AuthService {
             
             guard let httpResponse = response as? HTTPURLResponse else {
                 print("❌ [AuthService] Error: Invalid response type")
-                return false
+                return (false, false) // 🌟 UPDATE 2: Return tuple on failure
             }
             
             if !(200...299).contains(httpResponse.statusCode) {
@@ -76,18 +77,28 @@ class AuthService {
                 if let errorString = String(data: data, encoding: .utf8) {
                     print("❌ [AuthService] Backend Error Payload: \(errorString)")
                 }
-                return false
+                return (false, false) // 🌟 UPDATE 3: Return tuple on failure
+            }
+            
+            // 🌟 NEW: PRINT THE FULL RAW JSON RESPONSE FROM BACKEND 🌟
+            if let fullResponseString = String(data: data, encoding: .utf8) {
+                print("📦 [AuthService] FULL BACKEND SUCCESS RESPONSE:")
+                print(fullResponseString)
+                print("--------------------------------------------------")
             }
             
             do {
                 let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
                 print("✅ [AuthService] API Success! Logged in as: \(authResponse.data?.user?.name ?? "Unknown")")
-                return authResponse.success
+                
+                // 🌟 UPDATE 4: Extract onboarding and return both values
+                let isOnboarding = authResponse.onboarding ?? false
+                return (authResponse.success, isOnboarding)
                 
             } catch {
                 print("❌ [AuthService] JSON Decoding Error: \(error.localizedDescription)")
                 print("❌ [AuthService] Raw Data: \(String(data: data, encoding: .utf8) ?? "nil")")
-                return false
+                return (false, false)  // 🌟 UPDATE 5: Return tuple on failure
             }
             
         } catch {
