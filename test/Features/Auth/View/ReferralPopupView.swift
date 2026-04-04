@@ -1,16 +1,10 @@
-//
-//  ReferralPopupView.swift
-//  test
-//
-//  Created by Umar Momin on 01/04/26.
-//
-
-
-// test/Features/Auth/View/ReferralPopupView.swift
 import SwiftUI
 
 struct ReferralPopupView: View {
     @State private var referralCode: String = ""
+    
+    // 🌟 NEW: Receive the generated username
+    var generatedUsername: String
     
     // Closures to handle the button taps
     var onNext: (String) -> Void
@@ -19,11 +13,23 @@ struct ReferralPopupView: View {
     var body: some View {
         VStack(spacing: 25) {
             
+            // 🌟 NEW: Display the generated username
+            VStack(spacing: 4) {
+                Text("Welcome!")
+                    .font(.title3)
+                    .foregroundColor(.gray)
+                
+                Text(generatedUsername)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.green)
+            }
+            .padding(.top, 10)
+            
             Text("Do you have a referral?")
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundColor(.white)
-                .padding(.top, 10)
             
             VStack(alignment: .leading, spacing: 8) {
                 Text("Referral Code")
@@ -39,12 +45,10 @@ struct ReferralPopupView: View {
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                     )
-                    // Makes the placeholder text gray instead of default
-                    .preferredColorScheme(.dark) 
+                    .preferredColorScheme(.dark)
             }
             
             VStack(spacing: 15) {
-                // Next Button
                 Button(action: {
                     onNext(referralCode)
                 }) {
@@ -53,11 +57,10 @@ struct ReferralPopupView: View {
                         .foregroundColor(.black)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.green) // You can use a custom hex color if you have a specific brand green
+                        .background(Color.green)
                         .cornerRadius(25)
                 }
                 
-                // Skip Button
                 Button(action: {
                     onSkip()
                 }) {
@@ -69,7 +72,7 @@ struct ReferralPopupView: View {
             .padding(.top, 10)
         }
         .padding(25)
-        .background(Color(red: 0.1, green: 0.1, blue: 0.1)) // Dark gray card background
+        .background(Color(red: 0.1, green: 0.1, blue: 0.1))
         .cornerRadius(24)
         .overlay(
             RoundedRectangle(cornerRadius: 24)
@@ -82,6 +85,6 @@ struct ReferralPopupView: View {
 #Preview {
     ZStack {
         Color.black.ignoresSafeArea()
-        ReferralPopupView(onNext: { _ in }, onSkip: { })
+        ReferralPopupView(generatedUsername: "scout_rider_000001", onNext: { _ in }, onSkip: { })
     }
 }
