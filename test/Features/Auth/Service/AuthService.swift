@@ -1,30 +1,27 @@
-// test/Features/Auth/Service/AuthService.swift
-
 import Foundation
-internal import _LocationEssentials
 internal import CoreLocation
 
 class AuthService {
     
-    // 🌟 Returns the success flag, the onboarding flag, and the token
+    // MARK: - Login Verification
     func verifyWithBackend(idToken: String) async throws -> (success: Bool, onboarding: Bool, token: String?) {
         let urlString = "https://staging.pathpulse.ai/api/auth/v2/auth/login"
         guard let url = URL(string: urlString) else {
-            print("❌ [AuthService] Error: Invalid URL")
             throw URLError(.badURL)
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Standard headers required by backend
         request.setValue("1", forHTTPHeaderField: "X-Version-Code")
         request.setValue("1.0.0", forHTTPHeaderField: "X-App-Version")
         request.setValue("ios", forHTTPHeaderField: "X-Device-Platform")
         
-        // 1. Get raw device data
         let rawDeviceInfo = DeviceInfoCollector.shared.getDeviceInfo()
         
-        // 2. Fetch location safely
+        // Fetch Location Safely
         var locationDict: [String: Double]? = nil
         let locStatus = await LocationManager.shared.requestLocationPermissionIfNeeded()
         if locStatus == .authorizedAlways || locStatus == .authorizedWhenInUse {
@@ -36,7 +33,7 @@ class AuthService {
             }
         }
         
-        // 3. Construct the EXACT requested payload
+        // Construct full payload
         var payload: [String: Any] = [
             "idToken": idToken,
             "authProvider": "google",
@@ -52,61 +49,41 @@ class AuthService {
             ]
         ]
         
-        // Append location only if available
         if let locationDict = locationDict {
             payload["location"] = locationDict
         }
         
-        request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        
+        // Debug: Print Payload
+        if let body = request.httpBody, let jsonString = String(data: body, encoding: .utf8) {
+            print("📤 [AuthService] Sending Login Payload:\n\(jsonString)")
+        }
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            return (false, false, nil)
+        }
+        
+        // Debug: Catch Server Errors
+        if !(200...299).contains(httpResponse.statusCode) {
+            print("❌ [AuthService] LOGIN API FAILED with status: \(httpResponse.statusCode)")
+            if let serverError = String(data: data, encoding: .utf8) {
+                print("❌ [AuthService] SERVER SAYS:\n\(serverError)")
+            }
+            return (false, false, nil)
+        }
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                print("❌ [AuthService] Error: Invalid response type")
-                return (false, false, nil)
-            }
-            
-            // 🌟 PRINT ERROR RESPONSE (If backend returns 400, 500, etc.)
-            if !(200...299).contains(httpResponse.statusCode) {
-                print("❌ [AuthService] HTTP Error Status Code: \(httpResponse.statusCode)")
-                if let errorString = String(data: data, encoding: .utf8) {
-                    print("❌ [AuthService] Error Response Body:\n\(errorString)")
-                }
-                return (false, false, nil)
-            }
-            
-            // 🌟 PRINT SUCCESS RESPONSE (If backend returns 200 OK)
-            if let jsonString = String(data: data, encoding: .utf8) {
-                print("📦 [AuthService] RAW API SUCCESS RESPONSE:")
-                print(jsonString)
-                print("--------------------------------------------------")
-            }
-            
-            do {
-                // Decode using the newly updated AuthResponse model
-                let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
-                print("✅ [AuthService] Decoded Successfully! Logged in as: \(authResponse.user?.name ?? "Unknown")")
-                
-                // Extract the exact properties matching the new JSON
-                let isOnboarding = authResponse.needsOnboarding ?? false
-                let token = authResponse.accessToken
-                
-                return (authResponse.success, isOnboarding, token)
-                
-            } catch {
-                // Prints the exact reason why decoding failed (e.g., missing key, wrong type)
-                print("❌ [AuthService] JSON Decoding Error: \(error)")
-                return (false, false, nil)
-            }
-            
+            let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
+            return (authResponse.success, authResponse.needsOnboarding ?? false, authResponse.accessToken)
         } catch {
-            print("❌ [AuthService] Network Error: \(error.localizedDescription)")
-            throw error
+            print("❌ [AuthService] JSON Decoding failed during login. Error: \(error)")
+            return (false, false, nil)
         }
     }
     
-    // 🌟 NEW: Checks if a generated username already exists on the backend
+    // MARK: - Username Checks
     func checkIfUsernameExists(username: String) async throws -> Bool {
         let urlString = "https://staging.pathpulse.ai/api/auth/whatsapp/check-username"
         guard let url = URL(string: urlString) else {
@@ -117,24 +94,88 @@ class AuthService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let payload: [String: Any] = [
-            "username": username
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
+        let payload = ["username": username]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
         
         let (data, response) = try await URLSession.shared.data(for: request)
-        
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            print("❌ [AuthService] Username check failed with status code.")
-            return true // Safest fallback: Assume it exists so we don't accidentally assign a taken name
+            return true // Fallback to "exists" to prevent duplicate assignments on error
         }
         
-        // 🌟 Look for the "exists" key in the backend JSON response
         if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let exists = json["exists"] as? Bool {
             return exists
         }
-        
         return false
+    }
+
+    // MARK: - Complete Onboarding
+    func completeOnboarding(username: String, referralCode: String?) async throws -> Bool {
+        let urlString = "https://staging.pathpulse.ai/api/auth/v2/auth/user/onboarding"
+        guard let url = URL(string: urlString) else { throw URLError(.badURL) }
+        
+        // 1. Retrieve the token saved during login
+        guard let token = SecureStorage.shared.getToken() else {
+            print("❌ [AuthService] No token found to use for onboarding.")
+            return false
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // 🌟 Fix for the 401 Error: Send token in the header
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        // Standard headers
+        request.setValue("1", forHTTPHeaderField: "X-Version-Code")
+        request.setValue("1.0.0", forHTTPHeaderField: "X-App-Version")
+        request.setValue("ios", forHTTPHeaderField: "X-Device-Platform")
+        
+        // 2. Get full device info and location using your collector
+        var payload = await DeviceInfoCollector.shared.getFullPayload()
+        
+        // 3. Add the root properties requested by the backend
+        payload["signup_token"] = token // Send token in the body as well
+        payload["username"] = username
+        payload["device_platform"] = "ios"
+        payload["country_short_name"] = Locale.current.region?.identifier ?? "US"
+        
+        // Extract the device_fingerprint from the collector
+        if let deviceInfo = payload["device_info"] as? [String: Any],
+           let fingerprint = deviceInfo["device_fingerprint"] as? String {
+            payload["device_fingerprint"] = fingerprint
+        } else {
+            payload["device_fingerprint"] = "unknown"
+        }
+        
+        // Attach referral code if the user didn't skip
+        if let code = referralCode, !code.isEmpty {
+            payload["referralCode"] = code
+        }
+        
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        
+        // Debug: Print what we are sending for Onboarding
+        if let body = request.httpBody, let jsonString = String(data: body, encoding: .utf8) {
+            print("📤 [AuthService] Sending Onboarding Payload:\n\(jsonString)")
+        }
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else { return false }
+        
+        if (200...299).contains(httpResponse.statusCode) {
+            print("✅ [AuthService] Onboarding Success! Server Replied:")
+            if let responseStr = String(data: data, encoding: .utf8) {
+                print(responseStr)
+            }
+            return true
+        } else {
+            print("❌ [AuthService] ONBOARDING FAILED with status: \(httpResponse.statusCode)")
+            if let errorBody = String(data: data, encoding: .utf8) {
+                print("❌ [AuthService] SERVER SAYS:\n\(errorBody)")
+            }
+            return false
+        }
     }
 }

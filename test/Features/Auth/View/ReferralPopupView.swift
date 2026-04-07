@@ -1,9 +1,14 @@
+// test/Features/Auth/View/ReferralPopupView.swift
+
 import SwiftUI
 
 struct ReferralPopupView: View {
+    // 🌟 NEW: Access the shared AuthViewModel to react to error states
+    @EnvironmentObject var authViewModel: AuthViewModel
+    
     @State private var referralCode: String = ""
     
-    // 🌟 NEW: Receive the generated username
+    // Receive the generated username from the parent view
     var generatedUsername: String
     
     // Closures to handle the button taps
@@ -13,7 +18,7 @@ struct ReferralPopupView: View {
     var body: some View {
         VStack(spacing: 25) {
             
-            // 🌟 NEW: Display the generated username
+            // Display the generated username
             VStack(spacing: 4) {
                 Text("Welcome!")
                     .font(.title3)
@@ -46,6 +51,15 @@ struct ReferralPopupView: View {
                             .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                     )
                     .preferredColorScheme(.dark)
+                
+                // 🌟 NEW: Display the error if code is incorrect or API fails
+                if let error = authViewModel.onboardingError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.top, 4)
+                        .transition(.opacity)
+                }
             }
             
             VStack(spacing: 15) {
@@ -85,6 +99,11 @@ struct ReferralPopupView: View {
 #Preview {
     ZStack {
         Color.black.ignoresSafeArea()
-        ReferralPopupView(generatedUsername: "scout_rider_000001", onNext: { _ in }, onSkip: { })
+        ReferralPopupView(
+            generatedUsername: "scout_rider_000001",
+            onNext: { _ in },
+            onSkip: { }
+        )
+        .environmentObject(AuthViewModel())
     }
 }

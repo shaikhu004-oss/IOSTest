@@ -1,8 +1,11 @@
-// test/Features/Profile/View/LoginView.swift
+// test/Features/Auth/View/LoginView.swift
 import SwiftUI
 
 struct LoginView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    
+    // Theme colors to match your app
+    let themeGreen = Color(red: 0.3, green: 0.75, blue: 0.4)
     
     var body: some View {
         VStack(spacing: 40) {
@@ -12,15 +15,19 @@ struct LoginView: View {
             VStack(spacing: 15) {
                 Image(systemName: "figure.run.circle.fill")
                     .font(.system(size: 100))
-                    .foregroundColor(.blue)
+                    // Updated to match your custom theme color
+                    .foregroundColor(themeGreen)
                 
                 Text("Welcome to FitTracker")
                     .font(.title)
                     .fontWeight(.bold)
+                    // Ensure text is white so it reads well on the dark background
+                    .foregroundColor(.white)
                 
                 Text("Sign in to sync your stats and rankings.")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    // Changed to gray for a clean subtitle look
+                    .foregroundColor(.gray)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
@@ -36,6 +43,7 @@ struct LoginView: View {
                     // and use Image("GoogleLogo") here instead of the globe symbol.
                     Image(systemName: "globe")
                         .font(.title2)
+                        // Keep the Google icon blue or standard colors
                         .foregroundColor(.blue)
                     
                     Text("Continue with Google")
@@ -44,18 +52,21 @@ struct LoginView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
+                // Keeping the button white is standard for the "Sign in with Google" design guidelines
                 .background(Color.white)
                 .cornerRadius(12)
-                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+                .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 2)
             }
             .padding(.horizontal, 30)
             .padding(.bottom, 50)
         }
-        .background(Color(UIColor.secondarySystemBackground).ignoresSafeArea())
+        // 🌟 Replaced the old light background with your new global dark modifier!
+        .applyAppBackground()
     }
 }
 
 #Preview {
     LoginView()
         .environmentObject(AuthViewModel())
+        .preferredColorScheme(.dark)
 }

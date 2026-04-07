@@ -1,3 +1,5 @@
+// test/Features/Auth/ViewModel/AuthViewModel.swift
+
 import SwiftUI
 import GoogleSignIn
 import FirebaseAuth
@@ -9,6 +11,7 @@ class AuthViewModel: ObservableObject {
     @Published var isAuthenticated: Bool = false
     @Published var showReferralPopup: Bool = false
     @Published var generatedUsername: String = ""
+    @Published var onboardingError: String? = nil // 🌟 NEW: Track onboarding errors for the UI
     
     // Inject services
     private let googleService = GoogleAuthService()
@@ -24,7 +27,7 @@ class AuthViewModel: ObservableObject {
             print("✅ [AuthViewModel] Found existing token. Routing to Home.")
             self.isAuthenticated = true
         } else {
-            print("ℹ️ [AuthViewModel] No token found. Routing to Login.")
+            print("ℹ [AuthViewModel] No token found. Routing to Login.")
             self.isAuthenticated = false
         }
     }
@@ -65,54 +68,67 @@ class AuthViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Onboarding Submission Logic
+    
+    /// Call this when the user taps "Next" or "Skip" in the ReferralPopupView
+    func submitOnboarding(referralCode: String?) {
+        Task {
+            do {
+                onboardingError = nil
+                let success = try await backendService.completeOnboarding(
+                    username: self.generatedUsername,
+                    referralCode: referralCode
+                )
+                
+                if success {
+                    print("✅ [AuthViewModel] Onboarding complete. Closing popup.")
+                    withAnimation {
+                        self.showReferralPopup = false
+                        self.onboardingError = nil
+                        // The user is now fully authenticated and onboarded
+                    }
+                } else {
+                    // Show error if the referral code is incorrect or API fails
+                    self.onboardingError = "Invalid referral code or request failed. Please try again."
+                }
+            } catch {
+                self.onboardingError = "Network error: \(error.localizedDescription)"
+            }
+        }
+    }
+    
     // MARK: - Username Generation & Validation Logic
     
-    // 🌟 NEW: Loops until `exists` comes back false from the backend
+    // 🌟 UPDATED: Finds the next sequential username without using local storage
     private func findAndSetValidUsername() async {
-        var usernameExists = true // Start as true so we enter the loop
-        var attempts = 0
+        var usernameExists = true
+        var sequenceCounter = 1 // Start at 1 every time
         var prospectiveUsername = ""
         
         // Loop continues WHILE `usernameExists` is true
-        // (Added a safety limit of 50 attempts to prevent endless freezing if backend breaks)
-        while usernameExists && attempts < 50 {
-            prospectiveUsername = generateNextUsername()
+        while usernameExists && sequenceCounter < 1000 {
+            // Format it as 6 digits with leading zeroes
+            prospectiveUsername = String(format: "scout_rider_%06d", sequenceCounter)
             print("⏳ [AuthViewModel] Checking if username exists: \(prospectiveUsername)...")
             
             do {
-                // 🌟 FIX: Call the correctly named service method
                 usernameExists = try await backendService.checkIfUsernameExists(username: prospectiveUsername)
                 
                 if usernameExists == false {
-                    print("✅ [AuthViewModel] 'exists' is false! Username is available: \(prospectiveUsername)")
+                    print("✅ [AuthViewModel] Found available sequence! \(prospectiveUsername)")
                 } else {
-                    print("⚠️ [AuthViewModel] 'exists' is true. Username taken, looping again...")
+                    print("⚠️ [AuthViewModel] \(prospectiveUsername) taken, trying next...")
+                    sequenceCounter += 1
                 }
             } catch {
                 print("❌ [AuthViewModel] Error checking username. Proceeding with fallback.")
-                break // Break loop on network error
+                break
             }
-            
-            attempts += 1
         }
         
-        // Once `exists` is false (or loop breaks), show the popup
         self.generatedUsername = prospectiveUsername
         self.showReferralPopup = true
         print("✅ [AuthViewModel] Final verified username displayed to user: \(self.generatedUsername)")
-    }
-    
-    private func generateNextUsername() -> String {
-        let key = "scout_rider_index"
-        // Get current index from UserDefaults (defaults to 0 if doesn't exist)
-        let currentIndex = UserDefaults.standard.integer(forKey: key)
-        let nextIndex = currentIndex + 1
-        
-        // Save the updated index back
-        UserDefaults.standard.set(nextIndex, forKey: key)
-        
-        // Format it as 6 digits with leading zeroes (e.g., 000001)
-        return String(format: "scout_rider_%06d", nextIndex)
     }
     
     // MARK: - Sign Out
@@ -121,7 +137,7 @@ class AuthViewModel: ObservableObject {
         
         do {
             try Auth.auth().signOut()
-            print("ℹ️ [AuthViewModel] User signed out of Firebase.")
+            print("ℹ [AuthViewModel] User signed out of Firebase.")
         } catch {
             print("❌ [AuthViewModel] Error signing out of Firebase: \(error.localizedDescription)")
         }
@@ -131,6 +147,7 @@ class AuthViewModel: ObservableObject {
         self.isAuthenticated = false
         self.showReferralPopup = false
         self.generatedUsername = ""
-        print("ℹ️ [AuthViewModel] App state returned to unauthenticated and token cleared.")
+        self.onboardingError = nil
+        print("ℹ [AuthViewModel] App state returned to unauthenticated and token cleared.")
     }
 }

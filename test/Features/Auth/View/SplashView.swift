@@ -1,4 +1,4 @@
-// test/Application/View/SplashView.swift
+// test/Features/Auth/View/SplashView.swift
 import SwiftUI
 
 struct SplashView: View {
@@ -8,6 +8,9 @@ struct SplashView: View {
     
     // Inject our auth manager
     @StateObject private var authViewModel = AuthViewModel()
+    
+    // Theme colors to match your app
+    let themeGreen = Color(red: 0.3, green: 0.75, blue: 0.4)
     
     var body: some View {
         ZStack {
@@ -21,18 +24,16 @@ struct SplashView: View {
                         .environmentObject(authViewModel)
                 }
             } else {
-                Color("SplashBackground")
-                    .ignoresSafeArea()
-                
+                // --- SPLASH SCREEN CONTENT ---
                 VStack(spacing: 20) {
                     Image(systemName: "figure.run.circle.fill")
                         .font(.system(size: 100))
-                        .foregroundColor(.blue)
+                        .foregroundColor(themeGreen) // Changed to match your theme
                     
                     Text("FitTracker")
                         .font(.largeTitle)
                         .fontWeight(.bold)
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white) // Ensure it is white for the dark background
                 }
                 .scaleEffect(size)
                 .opacity(opacity)
@@ -42,6 +43,10 @@ struct SplashView: View {
                         self.opacity = 1.0
                     }
                 }
+                // Ensure the VStack takes up the full screen space
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // 🌟 Apply the global dark gradient background here!
+                .applyAppBackground()
             }
         }
         .onAppear {
@@ -52,4 +57,9 @@ struct SplashView: View {
             }
         }
     }
+}
+
+#Preview {
+    SplashView()
+        .preferredColorScheme(.dark)
 }

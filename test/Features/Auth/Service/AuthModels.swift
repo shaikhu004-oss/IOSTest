@@ -13,7 +13,7 @@ struct AuthResponse: Codable {
 
 // Maps exactly to the "user" object in your JSON
 struct AuthUserProfile: Codable {
-    let id: String // 🌟 Changed to String to handle UUIDs like "e71f9542..."
+    let id: String
     let firebaseUid: String?
     let email: String
     let phone: String?
@@ -22,5 +22,5 @@ struct AuthUserProfile: Codable {
     let walletAddress: String?
     let circleWalletAddress: String?
     let circleWalletId: String?
-    let isVerified: Bool
+    let isVerified: Bool? // 🌟 FIX: Made optional to prevent JSON decoding crash
 }
