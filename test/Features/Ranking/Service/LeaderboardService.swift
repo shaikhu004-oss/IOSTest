@@ -12,9 +12,9 @@ class LeaderboardService {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         
-        // Replace this with the actual token you get when the user logs in
-        let token = "YOUR_BEARER_TOKEN_HERE" 
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        // 🛠️ CRASH FIX: Safely unwrap the token with ?? ""
+        let token = SecureStorage.shared.getToken()
+        request.setValue("Bearer \(token ?? "")", forHTTPHeaderField: "Authorization")
         
         return request
     }
@@ -38,11 +38,12 @@ class LeaderboardService {
     }
     
     // Fetch Rewards
-    func getGlobalRewards() async throws -> GlobalRewardsResponse {
-        let endpoint = "/core/leaderboard/global-rewards"
-        let request = try createRequest(for: endpoint)
-        
+    func getGlobalRewards() async throws -> RewardData {
+        let request = try createRequest(for: "/core/leaderboard/global-rewards")
         let (data, _) = try await URLSession.shared.data(for: request)
-        return try JSONDecoder().decode(GlobalRewardsResponse.self, from: data)
+        
+        // 🛠️ Decode the outer wrapper, then return just the inner "data"
+        let response = try JSONDecoder().decode(GlobalRewardsResponse.self, from: data)
+        return response.data
     }
 }

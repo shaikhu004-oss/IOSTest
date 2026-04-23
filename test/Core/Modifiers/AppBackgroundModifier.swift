@@ -7,20 +7,16 @@
 
 
 // test/Core/Modifiers/AppBackgroundModifier.swift
+// test/Core/Modifiers/AppBackgroundModifier.swift
 import SwiftUI
 
 struct AppBackgroundModifier: ViewModifier {
     func body(content: Content) -> some View {
         ZStack {
-            // Your exact background from ProfileView
-            LinearGradient(
-                gradient: Gradient(colors: [Color(red: 0.1, green: 0.25, blue: 0.15), Color.black]),
-                startPoint: .top,
-                endPoint: .center
-            )
-            .ignoresSafeArea()
+            // Matches the new appBackground perfectly
+            Color(red: 0.05, green: 0.06, blue: 0.05)
+                .ignoresSafeArea()
             
-            // The actual screen content goes on top
             content
         }
     }

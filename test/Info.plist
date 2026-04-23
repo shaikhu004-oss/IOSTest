@@ -13,6 +13,15 @@
 	</array>
 	<key>GIDClientID</key>
 	<string>613964178261-ndffhjrtqk2ves31gslsbbkjt4hfrhqe.apps.googleusercontent.com</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>ClashDisplay-Bold.otf</string>
+		<string>ClashDisplay-Extralight.otf</string>
+		<string>ClashDisplay-Medium.otf</string>
+		<string>ClashDisplay-Regular.otf</string>
+		<string>ClashDisplay-Semibold.otf</string>
+		<string>faunapro.ttf</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

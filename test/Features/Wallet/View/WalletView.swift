@@ -1,228 +1,228 @@
 // test/Features/Wallet/View/WalletView.swift
 import SwiftUI
 
-// Blueprint for a transaction
-struct Transaction: Identifiable {
-    let id = UUID()
-    let title: String
-    let date: String
-    let amount: String
-    let isPositive: Bool
-}
-
 struct WalletView: View {
-    let themeBlack = Color(red: 0.08, green: 0.1, blue: 0.08)
+    // Theme colors matching the dark aesthetic
+    let themeBlack = Color(red: 0.05, green: 0.07, blue: 0.05)
+    let cardBackground = Color(red: 0.08, green: 0.1, blue: 0.08)
+    let themeGreen = Color(red: 0.2, green: 0.85, blue: 0.45)
     
-    let transactions = [
-        Transaction(title: "Morning Run (5km)", date: "Today", amount: "+50", isPositive: true),
-        Transaction(title: "Redeemed Water Bottle", date: "Yesterday", amount: "-500", isPositive: false),
-        Transaction(title: "Weekly Step Goal", date: "Mar 15", amount: "+200", isPositive: true),
-        Transaction(title: "Profile Completion", date: "Mar 10", amount: "+100", isPositive: true)
-    ]
-
     var body: some View {
-        // 🌟 Removed NavigationStack here! Just the ScrollView now.
         ScrollView {
-            VStack(spacing: 25) {
+            VStack(alignment: .leading, spacing: 20) {
                 
-                // --- 1. THE BALANCE CARD ---
-                VStack(alignment: .leading, spacing: 15) {
+                // --- CARD 1: WALLET ADDRESS ---
+                Button(action: {
+                    UIPasteboard.general.string = "0xa2427.....7dcdab8"
+                    print("Address copied!")
+                }) {
                     HStack {
-                        Button(action: {
-                            UIPasteboard.general.string = "0x71C...9A23"
-                            print("Address actually copied to clipboard!")
-                        }) {
-                            HStack(spacing: 6) {
-                                Text("0x71C...9A23")
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.white)
-                                
-                                Image(systemName: "doc.on.doc")
-                                    .font(.caption)
-                                    .foregroundColor(.white.opacity(0.8))
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.white.opacity(0.2))
-                            .cornerRadius(20)
-                        }
-                        
+                        Text("Oxa2427.....7dcdab8")
+                            .font(.headline) // Made slightly bolder to match image
+                            .foregroundColor(.white)
                         Spacer()
-                        
-                        Image(systemName: "bitcoinsign.circle.fill")
-                            .font(.title)
+                        Image(systemName: "square.on.square") // Swapped to square.on.square to match your image
                             .foregroundColor(.white)
+                            .font(.title3)
                     }
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Total Balance")
-                            .font(.headline)
-                            .foregroundColor(.white.opacity(0.8))
-                        
-                        Text("$2,132.25")
-                            .font(.system(size: 45, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-                    
-                    Text("Available to withdraw")
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.8))
+                    .padding(20)
+                    .background(cardBackground) // 🌟 Added solid card background
+                    .cornerRadius(16)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    )
                 }
-                .padding(25)
-                .background(
-                    LinearGradient(gradient: Gradient(colors: [Color.blue, Color.purple]), startPoint: .topLeading, endPoint: .bottomTrailing)
-                )
-                .cornerRadius(25)
-                .shadow(color: Color.purple.opacity(0.3), radius: 10, x: 0, y: 5)
                 .padding(.horizontal, 20)
                 .padding(.top, 10)
                 
-                // --- 2. ACTION BUTTONS ---
-                HStack(spacing: 20) {
-                    WalletActionButton(icon: "arrow.down.circle.fill", title: "Receive")
-                    WalletActionButton(icon: "arrow.up.circle.fill", title: "Send")
-                    WalletActionButton(icon: "gift.fill", title: "Redeem")
+                // --- CARD 2: TOTAL BALANCE ---
+                VStack(alignment: .leading, spacing: 15) {
+                    Text("Total Balance")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    Text("$0.00")
+                        .font(.system(size: 48, weight: .bold)) // Massive font size
+                        .foregroundColor(.white)
+                    
+                    // Inner Currency Dropdown Pill
+                    Button(action: {
+                        // Dropdown action
+                    }) {
+                        HStack {
+                            Text("$ USD")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                            Spacer()
+                            Image(systemName: "chevron.down")
+                                .foregroundColor(.white)
+                                .font(.subheadline)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 14)
+                        .background(Color.black.opacity(0.4)) // Darker inner background
+                        .cornerRadius(12)
+                    }
+                    .padding(.top, 5)
                 }
-                .padding(.horizontal, 20)
-                
-                // --- 3. HOLDINGS SECTION ---
-                VStack(alignment: .leading, spacing: 0) {
-                    HoldingRow(icon: "a.circle.fill", iconColor: .white, name: "Aptos", symbol: "APT", amount: "145.50", fiatValue: "$1,382.25")
-                    Divider().background(Color.gray.opacity(0.3)).padding(.leading, 70)
-                    HoldingRow(icon: "t.circle.fill", iconColor: .green, name: "Tether", symbol: "USDT", amount: "500.00", fiatValue: "$500.00")
-                    Divider().background(Color.gray.opacity(0.3)).padding(.leading, 70)
-                    HoldingRow(icon: "c.circle.fill", iconColor: .blue, name: "USD Coin", symbol: "USDC", amount: "250.00", fiatValue: "$250.00")
-                }
-                .background(themeBlack)
-                .cornerRadius(20)
+                .padding(20)
+                .background(cardBackground) // 🌟 Wrapped the whole balance section in a card background!
+                .cornerRadius(16)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
                 )
                 .padding(.horizontal, 20)
                 
-                // --- 4. RECENT ACTIVITY LIST ---
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Recent Activity")
+                // --- 3. HOLDINGS SECTION ---
+                VStack(alignment: .leading, spacing: 15) {
+                    Text("Holdings")
                         .font(.title3)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
                         .padding(.horizontal, 20)
-                        .padding(.top, 20)
-                        .padding(.bottom, 10)
                     
-                    ForEach(transactions) { transaction in
-                        HStack {
-                            Image(systemName: transaction.isPositive ? "plus.circle.fill" : "minus.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(transaction.isPositive ? .green : .red)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(transaction.title)
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                Text(transaction.date)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            
-                            Spacer()
-                            
-                            Text(transaction.amount)
-                                .font(.headline)
-                                .foregroundColor(transaction.isPositive ? .green : .white)
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
+                    VStack(spacing: 12) {
+                        HoldingCardView(
+                            iconName: "line.3.horizontal.circle",
+                            title: "APT",
+                            subtitle: "Aptos Coin",
+                            amount: "0.00000000",
+                            fiatValue: "$0",
+                            cardBackground: cardBackground
+                        )
                         
-                        if transaction.id != transactions.last?.id {
-                            Divider()
-                                .background(Color.gray.opacity(0.3))
-                                .padding(.leading, 60)
-                        }
+                        HoldingCardView(
+                            iconName: "tengesign.circle",
+                            title: "USDT",
+                            subtitle: "Tether USD",
+                            amount: "0.00000000",
+                            fiatValue: "$0",
+                            cardBackground: cardBackground
+                        )
+                        
+                        HoldingCardView(
+                            iconName: "dollarsign.circle",
+                            title: "USDC",
+                            subtitle: "USDC Coin",
+                            amount: "0.00000000",
+                            fiatValue: "$0",
+                            cardBackground: cardBackground
+                        )
                     }
-                    
-                    Spacer().frame(height: 10)
+                    .padding(.horizontal, 20)
                 }
-                .background(themeBlack)
-                .cornerRadius(20)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
-                )
-                .padding(.horizontal, 20)
+                .padding(.top, 10)
                 
-                Spacer(minLength: 40)
+                // --- 4. WITHDRAW TO SECTION ---
+                VStack(alignment: .leading, spacing: 15) {
+                    Text("Withdraw To")
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                    
+                    Button(action: {
+                        // External wallet action
+                    }) {
+                        VStack(spacing: 10) {
+                            // Green Wallet Icon Box
+                            Image(systemName: "wallet.pass.fill")
+                                .font(.title3)
+                                .foregroundColor(.black)
+                                .frame(width: 40, height: 30)
+                                .background(themeGreen)
+                                .cornerRadius(8)
+                            
+                            Text("External Wallet")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                        .background(cardBackground)
+                        .cornerRadius(15)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 15)
+                                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        )
+                    }
+                    .padding(.horizontal, 20)
+                }
+                
+                // --- 5. TRANSACTION HISTORY LINK ---
+                Button(action: {
+                    // Navigate to history
+                }) {
+                    Text("Transaction History")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(themeGreen)
+                        .underline()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 10)
+                
+                // Extra padding to scroll past the custom Tab Bar
+                Spacer(minLength: 120)
             }
         }
-        .navigationTitle("My Wallet")
+        .navigationTitle("Wallet")
         .navigationBarTitleDisplayMode(.inline)
         .applyAppBackground()
     }
 }
 
-// Reusable component for the round action buttons
-struct WalletActionButton: View {
-    var icon: String
+// --- REUSABLE HOLDING CARD COMPONENT ---
+struct HoldingCardView: View {
+    var iconName: String
     var title: String
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 28))
-                .foregroundColor(.blue)
-                .frame(width: 60, height: 60)
-                .background(Color.blue.opacity(0.15))
-                .clipShape(Circle())
-            
-            Text(title)
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundColor(.white)
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
-// Reusable component for coin holdings
-struct HoldingRow: View {
-    var icon: String
-    var iconColor: Color
-    var name: String
-    var symbol: String
+    var subtitle: String
     var amount: String
     var fiatValue: String
+    var cardBackground: Color
     
     var body: some View {
-        HStack {
-            Image(systemName: icon)
+        HStack(spacing: 15) {
+            // Icon
+            Image(systemName: iconName)
                 .resizable()
-                .frame(width: 40, height: 40)
-                .foregroundColor(iconColor)
+                .frame(width: 32, height: 32)
+                .foregroundColor(.white)
             
+            // Text Details
             VStack(alignment: .leading, spacing: 4) {
-                Text(name)
+                Text(title)
                     .font(.headline)
+                    .fontWeight(.bold)
                     .foregroundColor(.white)
-                Text(symbol)
+                Text(subtitle)
                     .font(.caption)
                     .foregroundColor(.gray)
             }
             
             Spacer()
             
+            // Amounts
             VStack(alignment: .trailing, spacing: 4) {
                 Text(amount)
                     .font(.headline)
+                    .fontWeight(.bold)
                     .foregroundColor(.white)
                 Text(fiatValue)
                     .font(.caption)
                     .foregroundColor(.gray)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding()
+        .background(cardBackground)
+        .cornerRadius(15)
+        .overlay(
+            RoundedRectangle(cornerRadius: 15)
+                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+        )
     }
 }
 

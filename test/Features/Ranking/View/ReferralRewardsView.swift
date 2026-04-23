@@ -2,9 +2,40 @@ import SwiftUI
 
 struct ReferralRewardsView: View {
     @Binding var isPresented: Bool
+    var rewards: [RewardTier]
     
     let themeBlack = Color(red: 0.04, green: 0.06, blue: 0.04)
     let themeGreen = Color(red: 0.0, green: 1.0, blue: 0.5)
+    
+    var totalAmount: String {
+        let sum = rewards.reduce(0) { $0 + $1.value }
+        return "$\(sum)"
+    }
+    
+    var groupedRewards: [GroupedReward] {
+        guard !rewards.isEmpty else { return [] }
+        let sorted = rewards.sorted(by: { $0.rank < $1.rank })
+        var result: [GroupedReward] = []
+        var startRank = sorted[0].rank
+        var endRank = sorted[0].rank
+        var currentValue = sorted[0].value
+        
+        for i in 1..<sorted.count {
+            let current = sorted[i]
+            if current.value == currentValue && current.rank == endRank + 1 {
+                endRank = current.rank
+            } else {
+                let rankStr = (startRank == endRank) ? "\(startRank)" : "\(startRank) - \(endRank)"
+                result.append(GroupedReward(rankText: rankStr, value: currentValue))
+                startRank = current.rank
+                endRank = current.rank
+                currentValue = current.value
+            }
+        }
+        let rankStr = (startRank == endRank) ? "\(startRank)" : "\(startRank) - \(endRank)"
+        result.append(GroupedReward(rankText: rankStr, value: currentValue))
+        return result
+    }
     
     var body: some View {
         ZStack {
@@ -12,12 +43,10 @@ struct ReferralRewardsView: View {
             Color.black.opacity(0.6)
                 .ignoresSafeArea()
                 .onTapGesture {
-                    withAnimation(.easeInOut) {
-                        isPresented = false
-                    }
+                    withAnimation(.easeInOut) { isPresented = false }
                 }
             
-            // Modal Container
+            // --- THE SOLID MODAL CARD ---
             VStack(spacing: 0) {
                 // --- HEADER ---
                 HStack(alignment: .top) {
@@ -26,27 +55,23 @@ struct ReferralRewardsView: View {
                             .font(.custom("ClashDisplay-Bold", size: 22))
                             .foregroundColor(.white)
                         
-                        // Updated text for Referrals
                         Text("Earn rewards every 7 days by inviting the most friends to PathPulse.")
                             .font(.system(size: 14))
                             .foregroundColor(themeGreen)
                             .lineSpacing(2)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    
                     Spacer(minLength: 16)
-                    
                     Button(action: {
-                        withAnimation(.easeInOut) {
-                            isPresented = false
-                        }
+                        withAnimation(.easeInOut) { isPresented = false }
                     }) {
                         Image(systemName: "xmark")
                             .font(.system(size: 20, weight: .bold))
                             .foregroundColor(.white)
+                            .padding(4)
                     }
                 }
-                .padding(.bottom, 20)
+                .padding(.bottom, 24)
                 
                 // --- TOTAL ROW ---
                 HStack {
@@ -54,21 +79,18 @@ struct ReferralRewardsView: View {
                         .font(.custom("ClashDisplay-Bold", size: 18))
                         .foregroundColor(.white)
                     Spacer()
-                    Text("$450") // Update this if the referral pool is different
+                    Text(totalAmount)
                         .font(.custom("ClashDisplay-Bold", size: 18))
                         .foregroundColor(themeGreen)
                     Spacer()
-                    Text("$450")
+                    Text(totalAmount)
                         .font(.custom("ClashDisplay-Bold", size: 18))
                         .foregroundColor(themeGreen)
                 }
-                .padding()
+                .padding(20)
                 .background(themeBlack)
                 .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(themeGreen.opacity(0.4), lineWidth: 1)
-                )
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(themeGreen.opacity(0.4), lineWidth: 1))
                 .padding(.bottom, 24)
                 
                 // --- TABLE HEADERS ---
@@ -90,28 +112,31 @@ struct ReferralRewardsView: View {
                 .foregroundColor(themeGreen)
                 .padding(.bottom, 16)
                 
-                // --- REWARDS LIST ---
-                VStack(spacing: 18) {
-                    // You can adjust these amounts if Referral rewards differ from Beats rewards
-                    RewardRow(rank: "1", amount: "$45", themeGreen: themeGreen)
-                    RewardRow(rank: "2", amount: "$35", themeGreen: themeGreen)
-                    RewardRow(rank: "3", amount: "$30", themeGreen: themeGreen)
-                    RewardRow(rank: "4", amount: "$25", themeGreen: themeGreen)
-                    RewardRow(rank: "5", amount: "$20", themeGreen: themeGreen)
-                    RewardRow(rank: "6 - 10", amount: "$15", themeGreen: themeGreen)
-                    RewardRow(rank: "11 - 20", amount: "$12", themeGreen: themeGreen)
-                    RewardRow(rank: "21 - 30", amount: "$10", themeGreen: themeGreen)
+                // --- INNER SCROLLVIEW (Only the list scrolls!) ---
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        ForEach(groupedRewards) { group in
+                            // Uses the RewardRow from the other file
+                            RewardRow(
+                                rank: group.rankText,
+                                amount: "$\(group.value)",
+                                themeGreen: themeGreen
+                            )
+                        }
+                    }
+                    .padding(.bottom, 10)
                 }
-                .padding(.bottom, 10)
+                .frame(maxHeight: 350)
             }
-            .padding(24)
+            .padding(.vertical, 30)
+            .padding(.horizontal, 24)
             .background(Color(red: 0.07, green: 0.08, blue: 0.07))
             .cornerRadius(24)
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-            )
+            .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.1), lineWidth: 1))
             .padding(.horizontal, 20)
+            
+            // 🛠️ THE FIX: Pushes the entire solid modal upward from the bottom nav bar
+            .padding(.bottom, 40)
         }
     }
 }

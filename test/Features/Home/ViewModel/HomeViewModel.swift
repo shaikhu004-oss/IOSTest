@@ -1,35 +1,91 @@
-//
-//  HomeViewModel.swift
-//  test
-//
-//  Created by Umar Momin on 25/03/26.
-//
-
-
 // test/Features/Home/ViewModel/HomeViewModel.swift
+import Foundation
 import SwiftUI
 internal import Combine
 
-
 @MainActor
 class HomeViewModel: ObservableObject {
+    @Published var isTracking = false
+    @Published var currentStats: StatModel = .empty
+    @Published var userProfile: UserProfile? = nil // 🛠️ Added to hold profile data
+    @Published var isLoading = false
+    @Published var errorMessage: String? = nil
     
-    @Published var isTracking: Bool = false
+    private let profileService = ProfileService() // 🛠️ Initialize the Profile Service
     
-    // Holding our stats data here instead of hardcoding it in the View
-    @Published var stats: [StatModel] = [
-        StatModel(title: "Beats", value: "0", icon: "heart.fill", iconColor: .red),
-        StatModel(title: "Time", value: "00:00", icon: "timer", iconColor: .blue),
-        StatModel(title: "Distance", value: "0.0", icon: "figure.walk", iconColor: .green),
-        StatModel(title: "Pulse", value: "0 bpm", icon: "waveform.path.ecg", iconColor: .purple)
-    ]
+    // Formatter to send yyyy-MM-dd to the API
+    private let apiDateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd"
+        return df
+    }()
     
     func toggleTracking() {
         isTracking.toggle()
-        if isTracking {
-            print("Tracking Started!")
-        } else {
-            print("Tracking Stopped!")
+    }
+    
+    // 🛠️ MAIN FUNCTION: Calls both separate fetch functions concurrently
+    func fetchStats(for range: String, startDate: Date? = nil, endDate: Date? = nil) {
+        isLoading = true
+        errorMessage = nil
+        
+        Task {
+            // Initiate both network requests concurrently
+            async let fetchStatsTask: () = loadStats(for: range, startDate: startDate, endDate: endDate)
+            async let fetchProfileTask: () = loadProfile()
+            
+            // Await both tasks to finish before stopping the loading state
+            _ = await (fetchStatsTask, fetchProfileTask)
+            
+            self.isLoading = false
         }
+    }
+    
+    // 🛠️ SEPARATE FUNCTION 1: Fetch Stats Only
+    private func loadStats(for range: String, startDate: Date?, endDate: Date?) async {
+        let startStr = startDate != nil ? apiDateFormatter.string(from: startDate!) : nil
+        let endStr = endDate != nil ? apiDateFormatter.string(from: endDate!) : nil
+        
+        do {
+            let response = try await StatsService.shared.fetchUserStats(
+                range: range,
+                startDate: startStr,
+                endDate: endStr
+            )
+            
+            self.currentStats = StatModel(
+                beats: String(format: "%.1f", response.totalBeats ?? 0.0),
+                puls: String(format: "%.2f", response.pulsPoints ?? 0.0),
+                time: formatTime(seconds: response.totalTimeTravelled ?? 0),
+                distance: String(format: "%.1f", response.totalDistanceKm ?? 0.0)
+            )
+        } catch {
+            print("Failed to fetch stats: \(error)")
+            self.errorMessage = "Failed to load stats data"
+            self.currentStats = .empty
+        }
+    }
+    
+    // 🛠️ SEPARATE FUNCTION 2: Fetch Profile Only
+    private func loadProfile() async {
+        do {
+            self.userProfile = try await profileService.fetchProfile()
+            print("✅ Profile loaded for: \(self.userProfile?.username ?? "Unknown")")
+        } catch {
+            print("Failed to fetch profile: \(error)")
+            // Optionally append to errorMessage if you want to alert the user
+            if self.errorMessage == nil {
+                self.errorMessage = "Failed to load profile data"
+            }
+        }
+    }
+    
+    // Converts seconds to HH:MM (e.g., 5400s -> 01:30)
+    private func formatTime(seconds: Int) -> String {
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        
+        // %02d ensures it always shows two digits (e.g., 05 instead of 5)
+        return String(format: "%02d:%02d", hours, minutes)
     }
 }

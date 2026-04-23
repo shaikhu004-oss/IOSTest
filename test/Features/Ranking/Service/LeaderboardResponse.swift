@@ -20,8 +20,7 @@ struct LeaderboardResponse: Codable {
 }
 
 struct LeaderboardPlayer: Codable, Identifiable {
-    // If the API doesn't send a user_id, we make a temporary one so SwiftUI loops don't break
-    var id: String { userId ?? UUID().uuidString } 
+    var id: String { userId ?? UUID().uuidString }
     
     let rank: Int
     let name: String
@@ -29,7 +28,6 @@ struct LeaderboardPlayer: Codable, Identifiable {
     let beats: Double?
     let referralPoints: Double?
     
-    // 🧠 SMART HELPER: Gives the UI the right points no matter which tab is open!
     var displayPoints: Double {
         return beats ?? referralPoints ?? 0.0
     }
@@ -41,29 +39,3 @@ struct LeaderboardPlayer: Codable, Identifiable {
     }
 }
 
-// MARK: - Rewards Models
-struct GlobalRewardsResponse: Codable {
-    let success: Bool
-    let message: String
-    let data: RewardData
-}
-
-struct RewardData: Codable {
-    let beatsRewards: [RewardTier]
-    let referralRewards: [RewardTier]
-    let nextResetTime: String
-    let leaderboardStartTime: String
-    
-    enum CodingKeys: String, CodingKey {
-        case beatsRewards = "beats_rewards"
-        case referralRewards = "referral_rewards"
-        case nextResetTime = "next_reset_time"
-        case leaderboardStartTime = "leaderboard_start_time"
-    }
-}
-
-struct RewardTier: Codable, Identifiable {
-    var id: Int { rank } 
-    let rank: Int
-    let value: Int
-}

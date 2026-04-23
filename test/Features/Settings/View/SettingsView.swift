@@ -115,10 +115,9 @@ struct SettingsView: View {
                     .padding(.horizontal, 20)
                     
                     // Delete Account Button
-                    Button(action: {
+                    NavigationLink(destination: DeleteAccountView()) {
                         // Delete account action
-                    }) {
-                        Text("Delete Account")
+                     Text("Delete Account")
                             .font(.subheadline)
                             .fontWeight(.bold)
                             .foregroundColor(themeGreen)
@@ -127,7 +126,7 @@ struct SettingsView: View {
                     }
                 }
                 .padding(.top, 15)
-                .padding(.bottom, 40)
+                .padding(.bottom, 120)
             }
         }
         // Apply the global background!

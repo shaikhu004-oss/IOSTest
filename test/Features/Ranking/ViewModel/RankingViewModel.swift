@@ -1,35 +1,109 @@
-import SwiftUI // <--- Must be SwiftUI
-internal import Combine
+import Foundation
+ internal import Combine
 
-// @MainActor ensures UI updates happen safely
-@MainActor
-class RankingViewModel: ObservableObject { // <--- MUST be 'class', not 'struct'!
+@MainActor // Keeps all UI changes safely on the main thread
+class RankingViewModel: ObservableObject {
     
-    @Published var leaderboard: [Player] = []
+    // The data we will show on the screen
+    @Published var users: [LeaderboardPlayer] = []
+    @Published var currentUser: LeaderboardPlayer? = nil
+    @Published var rewardsData: RewardData? = nil
+    
+    // Loading state for a loading spinner
     @Published var isLoading: Bool = false
-    @Published var errorMessage: String? = nil
     
-    func fetchLeaderboardData() async {
+    // Pagination trackers
+    @Published var currentPage: Int = 1
+    @Published var totalPages: Int = 1
+    let pageSize: Int = 10
+    
+    // When the tab changes, reset to page 1 and fetch fresh data!
+    @Published var selectedTab: String = "Beats" {
+        didSet {
+            currentPage = 1
+            Task { await loadLeaderboard() }
+        }
+    }
+    
+    private let apiService = LeaderboardService()
+    
+    init() {
+        // Fetch everything the second the view model is created
+        Task {
+            await fetchRewards()
+            await loadLeaderboard()
+        }
+    }
+    
+    // MARK: - Fetch Logic
+    
+    func loadLeaderboard() async {
         isLoading = true
-        errorMessage = nil
         
         do {
-            // Wait 1.5 seconds to simulate downloading
-            try await Task.sleep(nanoseconds: 1_500_000_000)
+            let response: LeaderboardResponse
             
-            // Provide the mock data
-            self.leaderboard = [
-                Player(id: 1, rank: 1, name: "Alex Johnson", score: 14500),
-                Player(id: 2, rank: 2, name: "Umar Momin", score: 13200),
-                Player(id: 3, rank: 3, name: "Sarah Smith", score: 12800),
-                Player(id: 4, rank: 4, name: "Mike Davis", score: 10400),
-                Player(id: 5, rank: 5, name: "Emma Wilson", score: 9900)
-            ]
+            // Look at the tab string to decide which API delivery to ask for
+            // 🛠️ UPDATED: We no longer need to pass pageSize here, Swift does it automatically!
+            if selectedTab == "Beats" {
+                response = try await apiService.getBeats(page: currentPage)
+            } else {
+                response = try await apiService.getReferrals(page: currentPage)
+            }
+            
+            // Save the data to our screen variables
+            self.users = response.leaderboard
+            self.currentUser = response.user
+            self.totalPages = response.totalPages
             
         } catch {
-            errorMessage = "Something went wrong!"
+            print("Failed to load leaderboard: \(error)")
         }
         
         isLoading = false
+    }
+    
+    func fetchRewards() async {
+        do {
+            let response = try await apiService.getGlobalRewards()
+            self.rewardsData = response
+            // The function ends here. No timer is started.
+        } catch {
+            print("Failed to fetch rewards: \(error)")
+        }
+    }
+    
+    // MARK: - Pagination Logic
+    
+    func loadPage(_ page: Int) {
+        guard page != currentPage, page > 0, page <= totalPages else { return }
+        currentPage = page
+        Task { await loadLeaderboard() }
+    }
+    
+    var visiblePages: [Int] {
+        let start = ((currentPage - 1) / 5) * 5 + 1
+        let end = min(start + 4, totalPages)
+        return Array(start...end)
+    }
+    
+    var hasNextBlock: Bool {
+        return visiblePages.last ?? 1 < totalPages
+    }
+    
+    var hasPreviousBlock: Bool {
+        return visiblePages.first ?? 1 > 1
+    }
+    
+    func nextBlock() {
+        if let lastVisible = visiblePages.last, lastVisible < totalPages {
+            loadPage(lastVisible + 1)
+        }
+    }
+    
+    func previousBlock() {
+        if let firstVisible = visiblePages.first, firstVisible > 1 {
+            loadPage(firstVisible - 5)
+        }
     }
 }

@@ -26,13 +26,13 @@ struct SplashView: View {
             } else {
                 // --- SPLASH SCREEN CONTENT ---
                 VStack(spacing: 20) {
-                    Image(systemName: "figure.run.circle.fill")
-                        .font(.system(size: 100))
-                        .foregroundColor(themeGreen) // Changed to match your theme
-                    
-                    Text("FitTracker")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
+                    Image("logo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 120, height: 120)
+                        
+                    Text("Scout Lite")
+                        .font(.custom("Fauna", size: 25))
                         .foregroundColor(.white) // Ensure it is white for the dark background
                 }
                 .scaleEffect(size)

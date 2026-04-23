@@ -64,6 +64,8 @@ class AuthService {
         guard let httpResponse = response as? HTTPURLResponse else {
             return (false, false, nil)
         }
+        print("The response (/httpresponse) is: \(String(describing: response))")
+        print("The data (/data) is: \(String(decoding: data, as: UTF8.self))")
         
         // Debug: Catch Server Errors
         if !(200...299).contains(httpResponse.statusCode) {

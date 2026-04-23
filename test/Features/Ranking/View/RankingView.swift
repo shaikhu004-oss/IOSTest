@@ -1,251 +1,344 @@
-// test/Features/Ranking/View/RankingView.swift
 import SwiftUI
 
 struct RankingView: View {
     @StateObject private var viewModel = RankingViewModel()
+    @State private var showBeatsRankingInfo = false
+    @State private var showRewardPopup = false
     
-    // State for the custom tab switcher (0 = Beats, 1 = Referrals)
-    @State private var selectedTab = 0
-    
-    // Theme colors to match the screenshot
-    let themeBlack = Color(red: 0.08, green: 0.1, blue: 0.08)
-    let themeGreen = Color(red: 0.3, green: 0.75, blue: 0.4)
-    let themeCyan = Color(red: 0.2, green: 0.8, blue: 0.8) // Used for countdown and bottom text
-    let lightGreen = Color(red: 0.5, green: 0.9, blue: 0.5) // Lighter green for the middle total
+    // Theme Colors
+    let themeBlack = Color(red: 0.04, green: 0.06, blue: 0.04)
+    let themeGreen = Color(red: 0.0, green: 1.0, blue: 0.5) // Neon Green
     
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    
-                    // --- 1. COUNTDOWN CARD ---
-                    VStack(spacing: 12) {
-                        Text("Leaderboard Starts on")
-                            .font(.subheadline)
-                            .foregroundColor(themeCyan)
-                        
-                        Text("0 Days . 00:00:00")
-                            .font(.title2)
-                            .fontWeight(.light)
-                            .foregroundColor(themeCyan)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 25)
-                    .background(Color.black.opacity(0.4))
-                    .cornerRadius(15)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 15)
-                            .stroke(themeCyan.opacity(0.5), lineWidth: 1)
-                    )
-                    .padding(.horizontal, 20)
+        ZStack {
+            themeBlack.ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // --- TOP HEADER ---
+                Text("Leaderboard")
+                    .font(.custom("ClashDisplay-Bold", size: 18))
+                    .foregroundColor(.white)
                     .padding(.top, 10)
+                    .padding(.bottom, 15)
+                
+                VStack(spacing: 15) {
+                    // --- 1. COUNTDOWN CARD ---
+                    CountdownCard(themeGreen: themeGreen)
                     
                     // --- 2. REWARDS CARD ---
-                    VStack(alignment: .leading, spacing: 15) {
-                        // Header
-                        HStack {
-                            Text("Rewards")
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                            
-                            Image(systemName: "info.circle")
-                                .foregroundColor(themeGreen)
-                            
-                            Spacer()
-                            
-                            Image(systemName: "chevron.right")
-                                .foregroundColor(.white)
-                        }
-                        
-                        // Subtitle with inline icon
-                        HStack(alignment: .top, spacing: 0) {
-                            Text("Earn rewards every 22 days by collecting the most data points (")
-                                .foregroundColor(themeGreen) +
-                            Text(Image(systemName: "square.fill"))
-                                .foregroundColor(.blue) +
-                            Text(" Beats).")
-                                .foregroundColor(themeGreen)
-                        }
-                        .font(.subheadline)
-                        .padding(.bottom, 5)
-                        
-                        // Divider Line
-                        Divider()
-                            .background(Color.gray.opacity(0.5))
-                        
-                        // Totals Row
-                        HStack {
-                            Text("Total")
-                                .font(.headline)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                            
-                            Spacer()
-                            
-                            Text("$1850")
-                                .font(.headline)
-                                .foregroundColor(lightGreen)
-                            
-                            Spacer()
-                            
-                            Text("$1,850")
-                                .font(.headline)
-                                .fontWeight(.bold)
-                                .foregroundColor(themeGreen)
-                        }
-                        .padding(.top, 5)
-                    }
-                    .padding(20)
-                    .background(themeBlack)
-                    .cornerRadius(15)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 15)
-                            .stroke(Color.white.opacity(0.05), lineWidth: 1)
-                    )
-                    .padding(.horizontal, 20)
+                    RewardsCardView(viewModel: viewModel, themeGreen: themeGreen, isPopupShowing: $showRewardPopup)
                     
-                    // --- 3. CUSTOM TAB SWITCHER ---
+                    // --- 3. CUSTOM TABS ---
                     HStack(spacing: 0) {
-                        // Beats Tab
-                        VStack(spacing: 8) {
-                            Text("Beats")
-                                .font(.headline)
-                                .fontWeight(.bold)
-                                .foregroundColor(selectedTab == 0 ? .white : .gray)
-                            
-                            Rectangle()
-                                .fill(selectedTab == 0 ? themeGreen : Color.gray.opacity(0.3))
-                                .frame(height: 2)
+                        TabButton(title: "Beats", isSelected: viewModel.selectedTab == "Beats", themeGreen: themeGreen) {
+                            viewModel.selectedTab = "Beats"
                         }
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            withAnimation(.easeInOut) { selectedTab = 0 }
-                        }
-                        
-                        // Referrals Tab
-                        VStack(spacing: 8) {
-                            Text("Referrals")
-                                .font(.headline)
-                                .fontWeight(.bold)
-                                .foregroundColor(selectedTab == 1 ? .white : .gray)
-                            
-                            Rectangle()
-                                .fill(selectedTab == 1 ? themeGreen : Color.gray.opacity(0.3))
-                                .frame(height: 2)
-                        }
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            withAnimation(.easeInOut) { selectedTab = 1 }
+                        TabButton(title: "Referrals", isSelected: viewModel.selectedTab == "Referrals", themeGreen: themeGreen) {
+                            viewModel.selectedTab = "Referrals"
                         }
                     }
-                    .padding(.horizontal, 20)
                     .padding(.top, 10)
-                    
-                    // --- 4. COOLDOWN MESSAGE ---
-                    Text("Your rewards will be processed before the\ncooldown period ends.")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(themeCyan)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 15)
-                        .padding(.horizontal, 20)
-                    
-                    // --- 5. THE LEADERBOARD LIST (From previous step) ---
-                    // I left this here so you don't lose the UI when the leaderboard goes live!
-                    if viewModel.isLoading {
-                        ProgressView()
-                            .tint(.white)
-                            .padding(.top, 20)
-                    } else if let errorMessage = viewModel.errorMessage {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                            .padding(.top, 20)
-                    } else {
-                        LazyVStack(spacing: 12) {
-                            ForEach(viewModel.leaderboard) { player in
-                                PlayerRowView(player: player, themeBlack: themeBlack, themeGreen: themeGreen)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 15)
+                
+                // --- SCROLLVIEW & LEADERBOARD LIST ---
+                ZStack(alignment: .bottom) {
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 15) {
+                            
+                            // --- 4. LEADERBOARD LIST ---
+                            VStack(spacing: 12) {
+                                // 🛠️ FIXED: Now uses the real API users
+                                ForEach(viewModel.users) { user in
+                                    PlayerRowView(user: user, themeGreen: themeGreen, isSticky: false, isCurrentUser: false)
+                                }
                             }
+                            
+                            // --- 5. SQUARE PAGINATION ---
+                            HStack(spacing: 8) {
+                                SquarePaginationButton(icon: "chevron.left", isDisabled: !viewModel.hasPreviousBlock) {
+                                    withAnimation { viewModel.previousBlock() }
+                                }
+                                
+                                ForEach(viewModel.visiblePages, id: \.self) { page in
+                                    SquarePageNumberButton(page: page, isSelected: viewModel.currentPage == page, themeGreen: themeGreen) {
+                                        viewModel.loadPage(page)
+                                    }
+                                }
+                                
+                                SquarePaginationButton(icon: "chevron.right", isDisabled: !viewModel.hasNextBlock) {
+                                    withAnimation { viewModel.nextBlock() }
+                                }
+                            }
+                            .padding(.top, 25)
+                            .padding(.bottom, 30)
                         }
                         .padding(.horizontal, 20)
-                        .padding(.top, 15)
+                        .padding(.bottom, 180)
                     }
                     
-                    Spacer(minLength: 40)
+                    // --- 6. STICKY CURRENT USER CARD ---
+                    // 🛠️ FIXED: Safely unwraps the current user from the API
+                    if let currentUser = viewModel.currentUser {
+                        PlayerRowView(user: currentUser, themeGreen: themeGreen, isSticky: true, isCurrentUser: true)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 90)
+                    }
                 }
             }
-            .navigationTitle("Leaderboard")
-            .navigationBarTitleDisplayMode(.inline)
-            .applyAppBackground()
-            .task {
-                if viewModel.leaderboard.isEmpty {
-                    await viewModel.fetchLeaderboardData()
+            
+        }
+        .navigationBarHidden(true)
+                // 🛠️ THE FIX: This breaks the popup out to cover the ENTIRE screen (including the Custom Tab Bar!)
+        .fullScreenCover(isPresented: $showRewardPopup) {
+            ZStack {
+                if viewModel.selectedTab == "Beats" {
+                    BeatsRewardsView(
+                        isPresented: $showRewardPopup,
+                        rewards: viewModel.rewardsData?.beatsRewards ?? []
+                    )
+                } else if viewModel.selectedTab == "Referrals" {
+                    ReferralRewardsView(
+                        isPresented: $showRewardPopup,
+                        rewards: viewModel.rewardsData?.referralRewards ?? []
+                    )
                 }
             }
+            .presentationBackground(.clear)
         }
     }
 }
 
-// --- REUSABLE COMPONENT FOR THE ROW ---
-struct PlayerRowView: View {
-    var player: Player
-    var themeBlack: Color
+// MARK: - Reusable Helper Components
+
+struct CountdownCard: View {
     var themeGreen: Color
+    var body: some View {
+        VStack(spacing: 8) {
+            Text("Leaderboard Resets")
+                .font(.custom("ClashDisplay-Medium", size: 14))
+                .foregroundColor(.gray)
+            Text("4 Days . 22:23:44")
+                .font(.custom("ClashDisplay-Bold", size: 28))
+                .foregroundColor(themeGreen)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+        .background(Color.white.opacity(0.08))
+        .cornerRadius(16)
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.1), lineWidth: 1))
+    }
+}
+
+struct RewardsCardView: View {
+    @ObservedObject var viewModel: RankingViewModel
+    var themeGreen: Color
+    @Binding var isPopupShowing: Bool
+    
+    // 🛠️ FIXED: Computes the subtitle locally based on the selected tab
+    var subtitle: String {
+        viewModel.selectedTab == "Beats"
+        ? "Earn rewards every 7 days by collecting the most data points (Beats)."
+        : "Earn rewards by referring friends and growing our community."
+    }
+    
+    // 🛠️ FIXED: Calculates the real total dynamically from the API Rewards Data!
+    var totalAmount: String {
+            if let data = viewModel.rewardsData {
+                // 🛠️ The '?? []' safely defaults to an empty list instead of crashing!
+                let rewards = viewModel.selectedTab == "Beats" ? (data.beatsRewards ?? []) : (data.referralRewards ?? [])
+                let sum = rewards.reduce(0) { $0 + $1.value }
+                return "$\(sum)"
+            }
+            return viewModel.selectedTab == "Beats" ? "$450" : "$100"
+        }
     
     var body: some View {
-        HStack {
-            // Rank / Medal
-            if player.rank == 1 {
-                Image(systemName: "medal.fill")
-                    .foregroundColor(.yellow)
-                    .font(.title2)
-                    .frame(width: 30)
-            } else if player.rank == 2 {
-                Image(systemName: "medal.fill")
-                    .foregroundColor(Color(white: 0.8)) // Silver
-                    .font(.title2)
-                    .frame(width: 30)
-            } else if player.rank == 3 {
-                Image(systemName: "medal.fill")
-                    .foregroundColor(.brown) // Bronze
-                    .font(.title2)
-                    .frame(width: 30)
-            } else {
-                Text("\(player.rank)")
-                    .font(.headline)
-                    .foregroundColor(.gray)
-                    .frame(width: 30)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Rewards")
+                    .font(.custom("ClashDisplay-Bold", size: 20))
+                    .foregroundColor(.white)
+                
+                Image("info2")
+                    .resizable()
+                    .frame(width: 16, height: 16)
+                
+                Spacer()
+                Button(action: {
+                    withAnimation(.spring()) {
+                        isPopupShowing = true
+                    }
+                }) {
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.white)
+                }
             }
             
-            // Avatar
-            Image(systemName: "person.circle.fill")
-                .resizable()
-                .frame(width: 40, height: 40)
-                .foregroundColor(themeGreen)
-                .padding(.horizontal, 8)
+            Text(subtitle)
+                .font(.custom("ClashDisplay-Regular", size: 14))
+                .foregroundColor(themeGreen.opacity(0.8))
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
             
-            // Name
-            Text(player.name)
-                .font(.body)
-                .fontWeight(.medium)
-                .foregroundColor(.white)
+            HStack {
+                Text("Total")
+                    .font(.custom("ClashDisplay-Bold", size: 16))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                Text(totalAmount)
+                    .font(.custom("ClashDisplay-Bold", size: 16))
+                    .foregroundColor(themeGreen)
+                
+                Spacer()
+                
+                Text(totalAmount)
+                    .font(.custom("ClashDisplay-Bold", size: 16))
+                    .foregroundColor(themeGreen)
+            }
+            .padding()
+            .background(Color.white.opacity(0.08))
+            .cornerRadius(16)
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(themeGreen.opacity(0.2), lineWidth: 1))
+        }
+        .padding(20)
+        .background(Color.white.opacity(0.08))
+        .cornerRadius(16)
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(themeGreen.opacity(0.2), lineWidth: 1))
+    }
+}
+
+struct PlayerRowView: View {
+    // 🛠️ FIXED: Expects the new API Model "LeaderboardPlayer"
+    var user: LeaderboardPlayer
+    var themeGreen: Color
+    var isSticky: Bool
+    var isCurrentUser: Bool // Passed directly to handle styling
+    
+    var body: some View {
+        HStack(spacing: 15) {
+            
+            ZStack {
+                if user.rank == 1 {
+                    Image("gold")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 25, height: 25)
+                } else if user.rank == 2 {
+                    Image("silver")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 25, height: 25)
+                } else if user.rank == 3 {
+                    Image("bronze")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 25, height: 25)
+                } else {
+                    Text("\(user.rank)")
+                        .font(.custom("ClashDisplay-Bold", size: 16))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                }
+            }
+            .frame(width: 40, alignment: .center)
+            
+            // 🛠️ FIXED: Uses user.name instead of username
+            Text(user.name)
+                .font(.custom("ClashDisplay-Medium", size: 16))
+                .foregroundColor(isCurrentUser ? themeGreen : .white)
+                .lineLimit(1)
             
             Spacer()
             
-            // Score
-            Text("\(player.score) pts")
-                .font(.subheadline)
-                .fontWeight(.bold)
-                .foregroundColor(themeGreen)
+            HStack(spacing: 4) {
+                Image("beats")
+                    .resizable()
+                    .frame(width: 14, height: 14)
+                
+                // 🛠️ FIXED: Uses user.displayPoints helper we created earlier
+                Text(String(format: "%.1f", user.displayPoints))
+                    .font(.custom("ClashDisplay-Bold", size: 16))
+                    .foregroundColor(.white)
+            }
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 16)
-        .background(themeBlack)
-        .cornerRadius(15)
+        .padding(18)
+        .background(isSticky ? Color(red: 0.05, green: 0.07, blue: 0.05) : Color.white.opacity(0.08))
+        .cornerRadius(16)
         .overlay(
-            RoundedRectangle(cornerRadius: 15)
-                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(isCurrentUser ? themeGreen : Color.clear, lineWidth: 1.5)
         )
+    }
+}
+
+struct SquarePageNumberButton: View {
+    let page: Int
+    let isSelected: Bool
+    let themeGreen: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text("\(page)")
+                .font(.custom("ClashDisplay-Bold", size: 16))
+                .foregroundColor(isSelected ? .black : themeGreen)
+                .frame(width: 42, height: 42)
+                .background(isSelected ? themeGreen : Color.black)
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(themeGreen.opacity(isSelected ? 0 : 0.5), lineWidth: 1.5)
+                )
+        }
+    }
+}
+
+struct SquarePaginationButton: View {
+    let icon: String
+    let isDisabled: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(isDisabled ? .gray : .white)
+                .frame(width: 42, height: 42)
+                .background(Color.black)
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(isDisabled ? Color.gray.opacity(0.3) : Color.white.opacity(0.3), lineWidth: 1.5)
+                )
+        }
+        .disabled(isDisabled)
+    }
+}
+
+struct TabButton: View {
+    var title: String
+    var isSelected: Bool
+    var themeGreen: Color
+    var action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Text(title)
+                    .font(.custom("ClashDisplay-Bold", size: 16))
+                    .foregroundColor(isSelected ? .white : .gray)
+                
+                Rectangle()
+                    .fill(isSelected ? themeGreen : Color.clear)
+                    .frame(height: 3)
+            }
+            .frame(maxWidth: .infinity)
+        }
     }
 }
 

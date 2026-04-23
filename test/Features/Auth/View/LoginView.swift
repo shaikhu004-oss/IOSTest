@@ -12,16 +12,15 @@ struct LoginView: View {
             Spacer()
             
             // 1. App Logo & Welcome Text
-            VStack(spacing: 15) {
-                Image(systemName: "figure.run.circle.fill")
-                    .font(.system(size: 100))
-                    // Updated to match your custom theme color
-                    .foregroundColor(themeGreen)
+            VStack(spacing: 20) {
+                Image("logo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 120)
                 
-                Text("Welcome to FitTracker")
+                Text("Welcome to Scout")
                     .font(.title)
                     .fontWeight(.bold)
-                    // Ensure text is white so it reads well on the dark background
                     .foregroundColor(.white)
                 
                 Text("Sign in to sync your stats and rankings.")
@@ -43,7 +42,6 @@ struct LoginView: View {
                     // and use Image("GoogleLogo") here instead of the globe symbol.
                     Image(systemName: "globe")
                         .font(.title2)
-                        // Keep the Google icon blue or standard colors
                         .foregroundColor(.blue)
                     
                     Text("Continue with Google")

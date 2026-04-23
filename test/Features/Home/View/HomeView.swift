@@ -1,3 +1,4 @@
+// test/Features/Home/View/HomeView.swift
 import SwiftUI
 
 struct HomeView: View {
@@ -8,244 +9,460 @@ struct HomeView: View {
     @State private var selectedTimeframe = "Daily"
     let timeframes = ["Daily", "Weekly", "Monthly", "Custom"]
     
-    // Theme colors
-    let themeBlack = Color(red: 0.08, green: 0.1, blue: 0.08)
-    let themeGreen = Color(red: 0.3, green: 0.75, blue: 0.4)
-    let cardBackground = Color(red: 0.05, green: 0.07, blue: 0.05)
+    // State for Custom Date Range
+    @State private var customStartDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+    @State private var customEndDate = Date()
     
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                
-                // --- CUSTOM HEADER ---
-                HStack {
-                    Text("Home")
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
+    // State for showing the Calendar Sheets
+    @State private var showStartCalendar = false
+    @State private var showEndCalendar = false
+    
+    // NEW: State for Info Popups
+    @State private var showBeatsInfo = false
+    @State private var showPulsInfo = false
+    
+    // 1. App Background (Deepest greenish-gray)
+    let appBackground = Color(red: 0.05, green: 0.06, blue: 0.05)
+
+    // 2. Outer Card Background (Slightly lighter to stand out from background)
+    let themeBlack = Color(red: 0.08, green: 0.09, blue: 0.08)
+
+    // 3. Inner Stat Card Background (Lightest gray for depth)
+    let cardInnerGray = Color(red: 0.12, green: 0.12, blue: 0.12)
+
+    let themeGreen = Color(red: 0.2, green: 0.85, blue: 0.45)
+    let subheadlineGray = Color(red: 0.6, green: 0.6, blue: 0.6)
+    let captionGray = Color(red: 0.5, green: 0.5, blue: 0.5)
+    
+    var buttonInnerGradient: LinearGradient {
+        LinearGradient(
+            gradient: Gradient(colors: [
+                Color(red: 0.01, green: 0.4, blue: 0.2),
+                Color(red: 0.2, green: 0.85, blue: 0.45),
+                Color(red: 0.1, green: 0.4, blue: 0.2)
+            ]),
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+    
+    var buttonBorderColor: Color {
+        Color(red: 0.15, green: 0.35, blue: 0.25)
+    }
+    
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d, yyyy"
+        return formatter
+    }
+    
+    // MARK: - MAIN BODY
+    // MARK: - MAIN BODY
+        var body: some View {
+            NavigationStack {
+                ZStack {
+                    // 1. EXACT BACKGROUND FIX: Apply it behind everything here
+                    appBackground.ignoresSafeArea()
                     
-                    Spacer()
-                    
-                    // PULS Pill
-                    HStack(spacing: 4) {
-                        Text("P")
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.black)
-                            .padding(4)
-                            .background(Circle().fill(themeGreen))
+                    VStack(spacing: 0) {
+                        headerView
                         
-                        Text("10")
-                            .font(.subheadline)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
+                        ScrollView(.vertical, showsIndicators: false) {
+                            VStack(spacing: 20) {
+                                totalStatsCard
+                                uploadStatusCard
+                            }
+                            .padding(.top, 5)
+                        }
+                        
+                        trackingButton
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.black.opacity(0.5))
-                    .cornerRadius(20)
-                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.1), lineWidth: 1))
                     
-                    // Bell Icon
-                    Button(action: { }) {
-                        Image(systemName: "bell")
-                            .font(.title3)
-                            .foregroundColor(.white)
-                            .padding(8)
-                            .background(Color.black.opacity(0.5))
-                            .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
+                    // --- NEW: Info Popups Layered on Top ---
+                    if showBeatsInfo {
+                        infoPopupView(
+                            title: "Beats",
+                            description: "Beats represent the data points you successfully contribute while tracking. More Beats mean better ranking and more rewards!",
+                            isPresented: $showBeatsInfo
+                        )
+                        .zIndex(2) // Ensures it sits perfectly on top
                     }
-                    .padding(.leading, 5)
+                    
+                    if showPulsInfo {
+                        infoPopupView(
+                            title: "$PULS",
+                            description: "$PULS is the utility token of the PathPulse ecosystem. You earn $PULS based on your Beats and can use it for exclusive features.",
+                            isPresented: $showPulsInfo
+                        )
+                        .zIndex(2) // Ensures it sits perfectly on top
+                    }
+                    // ---------------------------------------
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 10)
-                .padding(.bottom, 20)
+                .navigationBarHidden(true)
+                // 2. REMOVED .applyAppBackground() FROM HERE
+                .onAppear {
+                    viewModel.fetchStats(for: selectedTimeframe, startDate: customStartDate, endDate: customEndDate)
+                }
+                // Start Calendar Sheet
+                .sheet(isPresented: $showStartCalendar) {
+                    startCalendarSheet
+                }
+                // End Calendar Sheet
+                .sheet(isPresented: $showEndCalendar) {
+                    endCalendarSheet
+                }
+            }
+        }
+    
+    @ViewBuilder
+    private func infoPopupView(title: String, description: String, isPresented: Binding<Bool>) -> some View {
+        ZStack {
+            // Darkened background that closes the popup when tapped
+            Color.black.opacity(0.6)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.spring()) { isPresented.wrappedValue = false }
+                }
+            
+            // The Popup Card
+            VStack(spacing: 16) {
+                HStack(){
+                    Text(title)
+                        .font(.custom("ClashDisplay-Bold", size: 20))
+                        .foregroundColor(.white)
+                    Spacer()
+                    Button(action: {
+                        withAnimation(.spring()) { isPresented.wrappedValue = false }
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(subheadlineGray)
+                            .padding(8)
+                    }
+                }
+                Text(description)
+                    .font(.custom("ClashDisplay-Medium", size: 14))
+                    .foregroundColor(subheadlineGray)
+                    .multilineTextAlignment(.leading)
+                    .lineSpacing(4)
                 
-                ScrollView {
-                    VStack(spacing: 20) {
-                        
-                        // --- YOUR TOTAL STATS CARD ---
-                        VStack(alignment: .leading, spacing: 20) {
-                            
-                            // Card Title
-                            HStack {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(themeGreen)
-                                    .fontWeight(.bold)
-                                Text("Your Total Stats")
-                                    .font(.title3)
-                                    .fontWeight(.bold)
+            }
+            .padding(24)
+            .background(themeBlack)
+            .cornerRadius(24)
+            .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.1), lineWidth: 1))
+            .padding(.horizontal, 40)
+        }
+    }
+    // MARK: - SUBVIEWS
+    
+    private var headerView: some View {
+        HStack(alignment: .center) {
+            Text("Home")
+                .font(.custom("ClashDisplay-Bold", size: 28))
+                .foregroundColor(.white)
+            
+            Spacer()
+            
+            // PULS Pill
+            HStack(spacing: 4) {
+               Image("Puls")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 20, height: 20)
+                
+                Text(String(format: "%.0f", viewModel.userProfile?.pulsePoints ?? 0.0))
+                                    .font(.custom("ClashDisplay-Bold", size: 14))
                                     .foregroundColor(.white)
                             }
-                            
-                            // Timeframe Picker
-                            HStack(spacing: 10) {
-                                ForEach(timeframes, id: \.self) { timeframe in
-                                    Button(action: {
-                                        withAnimation { selectedTimeframe = timeframe }
-                                    }) {
-                                        Text(timeframe)
-                                            .font(.caption)
-                                            .fontWeight(.medium)
-                                            .foregroundColor(selectedTimeframe == timeframe ? .white : .gray)
-                                            .frame(maxWidth: .infinity)
-                                            .padding(.vertical, 8)
-                                            .background(selectedTimeframe == timeframe ? Color.clear : Color.black.opacity(0.4))
-                                            .cornerRadius(15)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 15)
-                                                    .stroke(selectedTimeframe == timeframe ? themeGreen : Color.white.opacity(0.05), lineWidth: 1)
-                                            )
-                                    }
-                                }
-                            }
-                            
-                            // Stats Grid
-                            VStack(spacing: 15) {
-                                HStack(spacing: 15) {
-                                    PrimaryStatCard(title: "Beats", value: "0.00", iconSystemName: "square.fill", iconColor: .blue, themeGreen: themeGreen)
-                                    PrimaryStatCard(title: "$PULS", value: "10.00", iconSystemName: "p.circle.fill", iconColor: themeGreen, themeGreen: themeGreen)
-                                }
-                                
-                                HStack(spacing: 15) {
-                                    SecondaryStatCard(title: "Time", value: "00:00", unit: "Hours", themeGreen: themeGreen)
-                                    SecondaryStatCard(title: "Distance", value: "0.0", unit: "Kilometers", themeGreen: themeGreen)
-                                }
-                            }
-                        }
-                        .padding(20)
-                        .background(themeBlack)
-                        .cornerRadius(20)
-                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.05), lineWidth: 1))
-                        .padding(.horizontal, 20)
-                        
-                        // --- UPLOAD STATUS CARD ---
-                        HStack(spacing: 15) {
-                            Image(systemName: "checkmark")
-                                .font(.title3)
-                                .foregroundColor(themeGreen)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Upload Detections (0), Trips (0)")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.gray)
-                                
-                                Text("0 trip(s), 0 sequence(s) ready")
-                                    .font(.caption)
-                                    .foregroundColor(Color.gray.opacity(0.7))
-                            }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.title3)
-                                .foregroundColor(.green)
-                        }
-                        .padding(20)
-                        .background(themeBlack)
-                        .cornerRadius(15)
-                        .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color.white.opacity(0.05), lineWidth: 1))
-                        .padding(.horizontal, 20)
-                        
-                        Spacer(minLength: 40)
+                            .padding(.horizontal, 8).padding(.vertical, 6)
+                            .background(Color.white.opacity(0.05))
+                            .cornerRadius(20)
+                            .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.1), lineWidth: 1))
+            // Bell Icon
+            Button(action: { }) {
+                Image(systemName: "bell")
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundColor(.white)
+                    .padding(11)
+                    .background(Color.white.opacity(0.05))
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
+            }
+            .padding(.leading, 5)
+        }
+        .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 20)
+    }
+    
+    private var totalStatsCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            
+            HStack(spacing: 6) {
+                Text("Your Total  Stats")
+                    .font(.custom("ClashDisplay-Bold", size: 18))
+                    .foregroundColor(.white)
+                Spacer()
+            }
+            
+            timeframePickerView
+            customDateInputsView
+            statsGridView
+        }
+            .padding(20)
+            .background(themeBlack) // This now uses the (0.04, 0.04, 0.04) value
+            .cornerRadius(16)
+            .overlay(RoundedRectangle(cornerRadius: 16)
+             .stroke(Color.white.opacity(0.1), lineWidth: 1) // Increased from 0.05
+                )
+            .padding(.horizontal, 20)
+    }
+    
+    private var timeframePickerView: some View {
+        HStack(spacing: 10) {
+            ForEach(timeframes, id: \.self) { timeframe in
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        selectedTimeframe = timeframe
+                        viewModel.fetchStats(for: timeframe, startDate: customStartDate, endDate: customEndDate)
+                    }
+                }) {
+                    Text(timeframe)
+                        .font(.custom(selectedTimeframe == timeframe ? "ClashDisplay-Semibold" : "ClashDisplay-Medium", size: 14))
+                        .foregroundColor(selectedTimeframe == timeframe ? .black : subheadlineGray)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            selectedTimeframe == timeframe
+                                ? Color.white
+                                : Color(red: 0.07, green: 0.07, blue: 0.07)
+                        )
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color.white.opacity(0.05), lineWidth: 1))
+                        .shadow(color: selectedTimeframe == timeframe ? Color.black.opacity(0.15) : Color.clear, radius: 2, x: 0, y: 1)
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var customDateInputsView: some View {
+        if selectedTimeframe == "Custom" {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Start Date").font(.custom("ClashDisplay-Medium", size: 12)).foregroundColor(subheadlineGray)
+                    Button(action: { showStartCalendar = true }) {
+                        Text(dateFormatter.string(from: customStartDate))
+                            .font(.custom("ClashDisplay-Semibold", size: 14)).foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 12)
+                            .background(cardInnerGray).cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color.white.opacity(0.1), lineWidth: 1) // Increased from 0.05
+                            )
                     }
                 }
-                
-                // --- START TRACKING BUTTON ---
-                Button(action: {
-                    viewModel.toggleTracking()
-                }) {
-                    Text(viewModel.isTracking ? "Stop Tracking" : "Start Tracking")
-                        .font(.headline)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 18)
-                        .background(Color(red: 0.05, green: 0.15, blue: 0.1))
-                        .cornerRadius(30)
-                        .overlay(RoundedRectangle(cornerRadius: 30).stroke(Color.white.opacity(0.1), lineWidth: 1))
-                        .shadow(color: themeGreen.opacity(viewModel.isTracking ? 0 : 0.4), radius: 20, x: 0, y: 5)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("End Date").font(.custom("ClashDisplay-Medium", size: 12)).foregroundColor(subheadlineGray)
+                    Button(action: { showEndCalendar = true }) {
+                        Text(dateFormatter.string(from: customEndDate))
+                            .font(.custom("ClashDisplay-Semibold", size: 14)).foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 12)
+                            .background(cardInnerGray).cornerRadius(12)
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.05), lineWidth: 1))
+                    }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 120)
-                .padding(.top, 10)
             }
-            .navigationBarHidden(true)
-            .applyAppBackground()
+            .padding(.top, 4)
+            .onChange(of: customStartDate) { _ in
+                viewModel.fetchStats(for: "Custom", startDate: customStartDate, endDate: customEndDate)
+            }
+            .onChange(of: customEndDate) { _ in
+                viewModel.fetchStats(for: "Custom", startDate: customStartDate, endDate: customEndDate)
+            }
         }
+    }
+    
+    private var statsGridView: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                PrimaryStatCard(title: "Beats", value: viewModel.currentStats.beats, iconName: "beats", isSystemImage: false, iconColor: .blue, bg: cardInnerGray, subheadlineColor: subheadlineGray,
+                                onInfoTap: {
+                    withAnimation(.spring()) { showBeatsInfo = true }
+                })
+                PrimaryStatCard(title: "$PULS", value: viewModel.currentStats.puls, iconName: "Puls", isSystemImage: false, iconColor: themeGreen, bg: cardInnerGray, subheadlineColor: subheadlineGray,onInfoTap: {
+                    withAnimation(.spring()) { showPulsInfo = true }
+                })
+            }
+            
+            HStack(spacing: 12) {
+                SecondaryStatCard(title: "Time", value: viewModel.currentStats.time, unit: "Hours", themeGreen: themeGreen, bg: cardInnerGray, subheadlineColor: subheadlineGray)
+                SecondaryStatCard(title: "Distance", value: viewModel.currentStats.distance, unit: "Kilometers", themeGreen: themeGreen, bg: cardInnerGray, subheadlineColor: subheadlineGray)
+            }
+        }
+    }
+    
+    private var uploadStatusCard: some View {
+        HStack(spacing: 16) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(.black)
+                .padding(8)
+                .background(Circle().fill(themeGreen))
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Upload Detections (0), Trips (0)")
+                    .font(.custom("ClashDisplay-Semibold", size: 14))
+                    .foregroundColor(.white)
+                Text("0 trip(s), 0 sequence(s) ready")
+                    .font(.custom("ClashDisplay-Regular", size: 12))
+                    .foregroundColor(captionGray)
+            }
+            Spacer()
+            Image(systemName: "square.and.arrow.up")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(themeGreen)
+        }
+            .padding(16)
+            .background(themeBlack) // Ensure this is also 'themeBlack'
+            .cornerRadius(16)
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.05), lineWidth: 1))
+            .padding(.horizontal, 20)
+    }
+    
+    private var trackingButton: some View {
+        Button(action: {
+            viewModel.toggleTracking()
+        }) {
+            Text(viewModel.isTracking ? "Stop Tracking" : "Start Tracking")
+                .font(.custom("ClashDisplay-Bold", size: 16))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity).padding(.vertical, 18)
+                .background(buttonInnerGradient).clipShape(Capsule())
+                .overlay(Capsule().stroke(buttonBorderColor, lineWidth: 1))
+                .shadow(color: themeGreen.opacity(viewModel.isTracking ? 0 : 0.2), radius: 15, x: 0, y: 1)
+        }
+        .padding(.horizontal, 20).padding(.bottom, 80).padding(.top, 10)
+    }
+    
+    private var startCalendarSheet: some View {
+        NavigationStack {
+            DatePicker("Select Date", selection: $customStartDate, in: ...customEndDate, displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .tint(themeGreen)
+                .padding()
+                .navigationTitle("Select Start Date")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") { showStartCalendar = false }
+                            .font(.custom("ClashDisplay-Bold", size: 16))
+                            .foregroundColor(themeGreen)
+                    }
+                }
+        }
+        .presentationDetents([.medium])
+    }
+    
+    private var endCalendarSheet: some View {
+        NavigationStack {
+            DatePicker("Select Date", selection: $customEndDate, in: customStartDate...Date(), displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .tint(themeGreen)
+                .padding()
+                .navigationTitle("Select End Date")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") { showEndCalendar = false }
+                            .font(.custom("ClashDisplay-Bold", size: 16))
+                            .foregroundColor(themeGreen)
+                    }
+                }
+        }
+        .presentationDetents([.medium])
     }
 }
 
-// --- REUSABLE STAT CARDS ---
+// 🛠️ PURE VERTICAL STAT CARDS 🛠️
 
 struct PrimaryStatCard: View {
     var title: String
     var value: String
-    var iconSystemName: String
+    var iconName: String
+    var isSystemImage: Bool
     var iconColor: Color
-    var themeGreen: Color
+    var bg: Color
+    var subheadlineColor: Color
+    var onInfoTap: (() -> Void)? = nil
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
+        VStack(alignment: .leading, spacing: 10) {
+            
+            // --- NEW CODE: HStack with Text and Info Circle ---
+            HStack(spacing: 6) {
                 Text(title)
-                    .font(.headline)
-                    .fontWeight(.bold)
+                    .font(.custom("ClashDisplay-Bold", size: 18))
                     .foregroundColor(.white)
-                Image(systemName: "info.circle")
-                    .font(.caption)
-                    .foregroundColor(themeGreen)
-                Spacer()
+                
+                // NEW: Wrapped in a button
+                Button(action: {
+                    onInfoTap?()
+                }) {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.green)
+                        .font(.system(size: 16))
+                }
             }
+            // -------------------------------------------------
             
             Text(value)
-                .font(.title)
-                .fontWeight(.bold)
+                .font(.custom("ClashDisplay-Bold", size: 18))
                 .foregroundColor(.white)
             
-            Image(systemName: iconSystemName)
-                .font(.title3)
-                .foregroundColor(iconColor)
-                .padding(.top, 4)
+            if isSystemImage {
+                Image(systemName: iconName)
+                    .font(.system(size: 22))
+                    .foregroundColor(iconColor)
+            } else {
+                Image(iconName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 22, height: 22)
+            }
         }
-        .padding(15)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.black.opacity(0.4))
-        .cornerRadius(15)
-        .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color.white.opacity(0.05), lineWidth: 1))
+        .background(bg)
+        .cornerRadius(16)
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.1), lineWidth: 1))
     }
 }
-
 struct SecondaryStatCard: View {
     var title: String
     var value: String
     var unit: String
     var themeGreen: Color
+    var bg: Color
+    var subheadlineColor: Color
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
+            
             Text(title)
-                .font(.headline)
-                .fontWeight(.bold)
+                .font(.custom("ClashDisplay-Bold", size: 18))
                 .foregroundColor(.white)
             
             Text(value)
-                .font(.title)
-                .fontWeight(.bold)
+                .font(.custom("ClashDisplay-Bold", size: 18))
                 .foregroundColor(.white)
             
             Text(unit)
-                .font(.caption)
+                .font(.custom("ClashDisplay-Medium", size: 15))
                 .foregroundColor(themeGreen)
-                .padding(.top, 4)
         }
-        .padding(15)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.black.opacity(0.4))
-        .cornerRadius(15)
-        .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color.white.opacity(0.05), lineWidth: 1))
+        .background(bg)
+        .cornerRadius(16)
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.05), lineWidth: 1))
     }
 }
 
