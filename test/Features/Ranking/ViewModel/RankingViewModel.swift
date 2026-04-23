@@ -15,6 +15,9 @@ class RankingViewModel: ObservableObject {
     // Pagination trackers
     @Published var currentPage: Int = 1
     @Published var totalPages: Int = 1
+    @Published var countdownText: String = "00:00:00:00"
+    private var timer: AnyCancellable?
+    
     let pageSize: Int = 10
     
     // When the tab changes, reset to page 1 and fetch fresh data!
@@ -35,7 +38,35 @@ class RankingViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Fetch Logic
+    func startCountdown() {
+        timer?.cancel()
+        timer = Timer.publish(every: 1, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                self?.updateCountdown()
+            }
+    }
+
+    private func updateCountdown() {
+        // Uses the nextResetTime from your RewardData model
+        guard let dateString = rewardsData?.nextResetTime else { return }
+        
+        let formatter = ISO8601DateFormatter()
+        guard let targetDate = formatter.date(from: dateString) else { return }
+        
+        let diff = targetDate.timeIntervalSinceNow
+        if diff <= 0 {
+            countdownText = "00 Days . 00:00:00"
+            return
+        }
+        
+        let days = Int(diff) / 86400
+        let hours = (Int(diff) % 86400) / 3600
+        let minutes = (Int(diff) % 3600) / 60
+        let seconds = Int(diff) % 60
+        
+        countdownText = String(format: "%d Days . %02d:%02d:%02d", days, hours, minutes, seconds)
+    }
     
     func loadLeaderboard() async {
         isLoading = true
@@ -67,12 +98,11 @@ class RankingViewModel: ObservableObject {
         do {
             let response = try await apiService.getGlobalRewards()
             self.rewardsData = response
-            // The function ends here. No timer is started.
+            startCountdown() // 👈 Add this line here
         } catch {
             print("Failed to fetch rewards: \(error)")
         }
     }
-    
     // MARK: - Pagination Logic
     
     func loadPage(_ page: Int) {

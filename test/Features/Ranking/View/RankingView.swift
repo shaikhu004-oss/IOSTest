@@ -23,7 +23,7 @@ struct RankingView: View {
                 
                 VStack(spacing: 15) {
                     // --- 1. COUNTDOWN CARD ---
-                    CountdownCard(themeGreen: themeGreen)
+                    CountdownCard(themeGreen: themeGreen, timeRemaining: viewModel.countdownText)
                     
                     // --- 2. REWARDS CARD ---
                     RewardsCardView(viewModel: viewModel, themeGreen: themeGreen, isPopupShowing: $showRewardPopup)
@@ -114,12 +114,14 @@ struct RankingView: View {
 
 struct CountdownCard: View {
     var themeGreen: Color
+    var timeRemaining: String // 👈 Add this property
+    
     var body: some View {
         VStack(spacing: 8) {
             Text("Leaderboard Resets")
                 .font(.custom("ClashDisplay-Medium", size: 14))
                 .foregroundColor(.gray)
-            Text("4 Days . 22:23:44")
+            Text(timeRemaining) // 👈 Use the variable here instead of "4 Days..."
                 .font(.custom("ClashDisplay-Bold", size: 28))
                 .foregroundColor(themeGreen)
         }
@@ -256,9 +258,9 @@ struct PlayerRowView: View {
             Spacer()
             
             HStack(spacing: 4) {
-                Image("beats")
-                    .resizable()
-                    .frame(width: 14, height: 14)
+                Image("triangle")
+                .resizable()
+                .frame(width: 14, height: 14)
                 
                 // 🛠️ FIXED: Uses user.displayPoints helper we created earlier
                 Text(String(format: "%.1f", user.displayPoints))
