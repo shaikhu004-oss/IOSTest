@@ -1,5 +1,5 @@
 import Foundation
- internal import Combine
+internal import Combine
 
 @MainActor // Keeps all UI changes safely on the main thread
 class RankingViewModel: ObservableObject {
@@ -9,8 +9,8 @@ class RankingViewModel: ObservableObject {
     @Published var currentUser: LeaderboardPlayer? = nil
     @Published var rewardsData: RewardData? = nil
     
-    // Loading state for a loading spinner
-    @Published var isLoading: Bool = false
+    // 🛠️ FIX 1: Set to true by default so skeletons show instantly when opening the screen!
+    @Published var isLoading: Bool = true
     
     // Pagination trackers
     @Published var currentPage: Int = 1
@@ -24,6 +24,8 @@ class RankingViewModel: ObservableObject {
     @Published var selectedTab: String = "Beats" {
         didSet {
             currentPage = 1
+            self.users = [] // 🛠️ FIX 2: Instantly empty old data to trigger the skeleton
+            self.isLoading = true // 🛠️ FIX 2: Instantly trigger loading state
             Task { await loadLeaderboard() }
         }
     }
@@ -75,7 +77,6 @@ class RankingViewModel: ObservableObject {
             let response: LeaderboardResponse
             
             // Look at the tab string to decide which API delivery to ask for
-            // 🛠️ UPDATED: We no longer need to pass pageSize here, Swift does it automatically!
             if selectedTab == "Beats" {
                 response = try await apiService.getBeats(page: currentPage)
             } else {
@@ -98,7 +99,7 @@ class RankingViewModel: ObservableObject {
         do {
             let response = try await apiService.getGlobalRewards()
             self.rewardsData = response
-            startCountdown() // 👈 Add this line here
+            startCountdown()
         } catch {
             print("Failed to fetch rewards: \(error)")
         }
@@ -108,12 +109,21 @@ class RankingViewModel: ObservableObject {
     func loadPage(_ page: Int) {
         guard page != currentPage, page > 0, page <= totalPages else { return }
         currentPage = page
+        self.users = [] // 🛠️ FIX 3: Empty old data to trigger skeleton between pages
+        self.isLoading = true // 🛠️ FIX 3: Instantly trigger loading state
         Task { await loadLeaderboard() }
     }
     
     var visiblePages: [Int] {
+        // 1. SAFETY CHECK: If there are no pages, show 0 buttons!
+        if totalPages < 1 { return [] }
+        
         let start = ((currentPage - 1) / 5) * 5 + 1
         let end = min(start + 4, totalPages)
+        
+        // 2. EXTRA SAFETY: Prevent the "Array(1...0)" crash
+        if start > end { return [] }
+        
         return Array(start...end)
     }
     

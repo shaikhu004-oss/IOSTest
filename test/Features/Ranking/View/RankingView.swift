@@ -49,48 +49,74 @@ struct RankingView: View {
                             
                             // --- 4. LEADERBOARD LIST ---
                             VStack(spacing: 12) {
-                                // 🛠️ FIXED: Now uses the real API users
-                                ForEach(viewModel.users) { user in
-                                    PlayerRowView(user: user, themeGreen: themeGreen, isSticky: false, isCurrentUser: false)
+                                if viewModel.isLoading && viewModel.users.isEmpty {
+                                    ForEach(0..<10, id: \.self) { _ in
+                                        SkeletonRowView()
+                                    }
+                                } else {
+                                    ForEach(viewModel.users) { user in
+                                        PlayerRowView(
+                                            user: user,
+                                            themeGreen: themeGreen,
+                                            isSticky: false,
+                                            isCurrentUser: false,
+                                            selectedTab: viewModel.selectedTab
+                                        )
+                                    }
                                 }
                             }
                             
                             // --- 5. SQUARE PAGINATION ---
-                            HStack(spacing: 8) {
-                                SquarePaginationButton(icon: "chevron.left", isDisabled: !viewModel.hasPreviousBlock) {
-                                    withAnimation { viewModel.previousBlock() }
-                                }
-                                
-                                ForEach(viewModel.visiblePages, id: \.self) { page in
-                                    SquarePageNumberButton(page: page, isSelected: viewModel.currentPage == page, themeGreen: themeGreen) {
-                                        viewModel.loadPage(page)
+                            if viewModel.isLoading && viewModel.users.isEmpty {
+                                // 🛠️ NEW: Show skeleton pagination while loading
+                                SkeletonPaginationView()
+                                    .padding(.top, 25)
+                                    .padding(.bottom, 30)
+                            } else if !viewModel.users.isEmpty {
+                                // Show real pagination once data is here
+                                HStack(spacing: 8) {
+                                    SquarePaginationButton(icon: "chevron.left", isDisabled: !viewModel.hasPreviousBlock) {
+                                        withAnimation { viewModel.previousBlock() }
+                                    }
+                                    
+                                    ForEach(viewModel.visiblePages, id: \.self) { page in
+                                        SquarePageNumberButton(page: page, isSelected: viewModel.currentPage == page, themeGreen: themeGreen) {
+                                            viewModel.loadPage(page)
+                                        }
+                                    }
+                                    
+                                    SquarePaginationButton(icon: "chevron.right", isDisabled: !viewModel.hasNextBlock) {
+                                        withAnimation { viewModel.nextBlock() }
                                     }
                                 }
-                                
-                                SquarePaginationButton(icon: "chevron.right", isDisabled: !viewModel.hasNextBlock) {
-                                    withAnimation { viewModel.nextBlock() }
-                                }
+                                .padding(.top, 25)
+                                .padding(.bottom, 30)
                             }
-                            .padding(.top, 25)
-                            .padding(.bottom, 30)
                         }
                         .padding(.horizontal, 20)
                         .padding(.bottom, 180)
                     }
                     
                     // --- 6. STICKY CURRENT USER CARD ---
-                    // 🛠️ FIXED: Safely unwraps the current user from the API
-                    if let currentUser = viewModel.currentUser {
-                        PlayerRowView(user: currentUser, themeGreen: themeGreen, isSticky: true, isCurrentUser: true)
+                    if viewModel.isLoading {
+                        SkeletonRowView()
                             .padding(.horizontal, 20)
                             .padding(.bottom, 90)
+                    } else if let currentUser = viewModel.currentUser {
+                        PlayerRowView(
+                            user: currentUser,
+                            themeGreen: themeGreen,
+                            isSticky: true,
+                            isCurrentUser: true,
+                            selectedTab: viewModel.selectedTab
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 90)
                     }
                 }
             }
-            
         }
         .navigationBarHidden(true)
-                // 🛠️ THE FIX: This breaks the popup out to cover the ENTIRE screen (including the Custom Tab Bar!)
         .fullScreenCover(isPresented: $showRewardPopup) {
             ZStack {
                 if viewModel.selectedTab == "Beats" {
@@ -114,14 +140,14 @@ struct RankingView: View {
 
 struct CountdownCard: View {
     var themeGreen: Color
-    var timeRemaining: String // 👈 Add this property
+    var timeRemaining: String
     
     var body: some View {
         VStack(spacing: 8) {
             Text("Leaderboard Resets")
                 .font(.custom("ClashDisplay-Medium", size: 14))
                 .foregroundColor(.gray)
-            Text(timeRemaining) // 👈 Use the variable here instead of "4 Days..."
+            Text(timeRemaining)
                 .font(.custom("ClashDisplay-Bold", size: 28))
                 .foregroundColor(themeGreen)
         }
@@ -138,23 +164,20 @@ struct RewardsCardView: View {
     var themeGreen: Color
     @Binding var isPopupShowing: Bool
     
-    // 🛠️ FIXED: Computes the subtitle locally based on the selected tab
     var subtitle: String {
         viewModel.selectedTab == "Beats"
         ? "Earn rewards every 7 days by collecting the most data points (Beats)."
         : "Earn rewards by referring friends and growing our community."
     }
     
-    // 🛠️ FIXED: Calculates the real total dynamically from the API Rewards Data!
     var totalAmount: String {
-            if let data = viewModel.rewardsData {
-                // 🛠️ The '?? []' safely defaults to an empty list instead of crashing!
-                let rewards = viewModel.selectedTab == "Beats" ? (data.beatsRewards ?? []) : (data.referralRewards ?? [])
-                let sum = rewards.reduce(0) { $0 + $1.value }
-                return "$\(sum)"
-            }
-            return viewModel.selectedTab == "Beats" ? "$450" : "$100"
+        if let data = viewModel.rewardsData {
+            let rewards = viewModel.selectedTab == "Beats" ? (data.beatsRewards ?? []) : (data.referralRewards ?? [])
+            let sum = rewards.reduce(0) { $0 + $1.value }
+            return "$\(sum)"
         }
+        return viewModel.selectedTab == "Beats" ? "$450" : "$100"
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -214,15 +237,14 @@ struct RewardsCardView: View {
 }
 
 struct PlayerRowView: View {
-    // 🛠️ FIXED: Expects the new API Model "LeaderboardPlayer"
     var user: LeaderboardPlayer
     var themeGreen: Color
     var isSticky: Bool
-    var isCurrentUser: Bool // Passed directly to handle styling
+    var isCurrentUser: Bool
+    var selectedTab: String
     
     var body: some View {
         HStack(spacing: 15) {
-            
             ZStack {
                 if user.rank == 1 {
                     Image("gold")
@@ -249,7 +271,6 @@ struct PlayerRowView: View {
             }
             .frame(width: 40, alignment: .center)
             
-            // 🛠️ FIXED: Uses user.name instead of username
             Text(user.name)
                 .font(.custom("ClashDisplay-Medium", size: 16))
                 .foregroundColor(isCurrentUser ? themeGreen : .white)
@@ -258,11 +279,10 @@ struct PlayerRowView: View {
             Spacer()
             
             HStack(spacing: 4) {
-                Image("triangle")
-                .resizable()
-                .frame(width: 14, height: 14)
+                Image(selectedTab == "Beats" ? "beats" : "triangle")
+                    .resizable()
+                    .frame(width: 14, height: 14)
                 
-                // 🛠️ FIXED: Uses user.displayPoints helper we created earlier
                 Text(String(format: "%.1f", user.displayPoints))
                     .font(.custom("ClashDisplay-Bold", size: 16))
                     .foregroundColor(.white)
@@ -340,6 +360,58 @@ struct TabButton: View {
                     .frame(height: 3)
             }
             .frame(maxWidth: .infinity)
+        }
+    }
+}
+
+struct SkeletonRowView: View {
+    @State private var isAnimating = false
+    
+    var body: some View {
+        HStack(spacing: 15) {
+            Circle()
+                .fill(Color.white.opacity(0.1))
+                .frame(width: 25, height: 25)
+            
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color.white.opacity(0.1))
+                .frame(width: 120, height: 16)
+            
+            Spacer()
+            
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color.white.opacity(0.1))
+                .frame(width: 50, height: 16)
+        }
+        .padding(18)
+        .background(Color.white.opacity(0.08))
+        .cornerRadius(16)
+        .opacity(isAnimating ? 0.5 : 1.0)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+                isAnimating = true
+            }
+        }
+    }
+}
+
+// 🛠️ NEW: The Skeleton component for your Square Pagination buttons!
+struct SkeletonPaginationView: View {
+    @State private var isAnimating = false
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(0..<3, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: 42, height: 42)
+            }
+        }
+        .opacity(isAnimating ? 0.5 : 1.0)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+                isAnimating = true
+            }
         }
     }
 }
