@@ -2,7 +2,7 @@ import SwiftUI
 
 struct RankingView: View {
     @StateObject private var viewModel = RankingViewModel()
-    @State private var showBeatsRankingInfo = false
+    @State private var showInfoPopup = false
     @State private var showRewardPopup = false
     
     // Theme Colors
@@ -26,7 +26,7 @@ struct RankingView: View {
                     CountdownCard(themeGreen: themeGreen, timeRemaining: viewModel.countdownText)
                     
                     // --- 2. REWARDS CARD ---
-                    RewardsCardView(viewModel: viewModel, themeGreen: themeGreen, isPopupShowing: $showRewardPopup)
+                    RewardsCardView(viewModel: viewModel, themeGreen: themeGreen, isPopupShowing: $showRewardPopup, isInfoShowing: $showInfoPopup)
                     
                     // --- 3. CUSTOM TABS ---
                     HStack(spacing: 0) {
@@ -68,12 +68,10 @@ struct RankingView: View {
                             
                             // --- 5. SQUARE PAGINATION ---
                             if viewModel.isLoading && viewModel.users.isEmpty {
-                                // 🛠️ NEW: Show skeleton pagination while loading
                                 SkeletonPaginationView()
                                     .padding(.top, 25)
                                     .padding(.bottom, 30)
                             } else if !viewModel.users.isEmpty {
-                                // Show real pagination once data is here
                                 HStack(spacing: 8) {
                                     SquarePaginationButton(icon: "chevron.left", isDisabled: !viewModel.hasPreviousBlock) {
                                         withAnimation { viewModel.previousBlock() }
@@ -117,6 +115,7 @@ struct RankingView: View {
             }
         }
         .navigationBarHidden(true)
+        // Main Reward Popup
         .fullScreenCover(isPresented: $showRewardPopup) {
             ZStack {
                 if viewModel.selectedTab == "Beats" {
@@ -132,6 +131,11 @@ struct RankingView: View {
                 }
             }
             .presentationBackground(.clear)
+        }
+        // 🛠️ UPDATED: Now points perfectly to the new RewardsInformationPopupView
+        .fullScreenCover(isPresented: $showInfoPopup) {
+            RewardsInformationPopupView(isPresented: $showInfoPopup, themeGreen: themeGreen)
+                .presentationBackground(.clear)
         }
     }
 }
@@ -163,6 +167,7 @@ struct RewardsCardView: View {
     @ObservedObject var viewModel: RankingViewModel
     var themeGreen: Color
     @Binding var isPopupShowing: Bool
+    @Binding var isInfoShowing: Bool
     
     var subtitle: String {
         viewModel.selectedTab == "Beats"
@@ -186,9 +191,15 @@ struct RewardsCardView: View {
                     .font(.custom("ClashDisplay-Bold", size: 20))
                     .foregroundColor(.white)
                 
-                Image("info2")
-                    .resizable()
-                    .frame(width: 16, height: 16)
+                Button(action: {
+                    withAnimation(.spring()) {
+                        isInfoShowing = true
+                    }
+                }) {
+                    Image("info2")
+                        .resizable()
+                        .frame(width: 16, height: 16)
+                }
                 
                 Spacer()
                 Button(action: {
@@ -236,6 +247,110 @@ struct RewardsCardView: View {
     }
 }
 
+// 🛠️ EXACT POPUP DESIGN YOU PROVIDED
+struct RewardsInformationPopupView: View {
+    @Binding var isPresented: Bool
+    var themeGreen: Color
+    
+    var body: some View {
+        ZStack {
+            // Dark Background Dimming
+            Color.black.opacity(0.6)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.easeInOut) { isPresented = false }
+                }
+            
+            VStack(alignment: .leading, spacing: 20) {
+                // --- 1. HEADER & CLOSE BUTTON ---
+                HStack {
+                    Text("Rewards Information")
+                        .font(.custom("ClashDisplay-Bold", size: 20))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        withAnimation(.easeInOut) { isPresented = false }
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(4)
+                    }
+                }
+                
+                    VStack(alignment: .leading, spacing: 20) {
+                        
+                        // --- 2. WEEKLY LEADERBOARD REWARDS ---
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Weekly Leaderboard Rewards")
+                                .font(.custom("ClashDisplay-Bold", size: 16))
+                                .foregroundColor(.white)// EXACT MATCH: Green Header
+                            
+                            Text("Compete with drivers and win rewards every leaderboard time based on leaderboard ranking")
+                                .font(.custom("ClashDisplay-Regular", size: 14))
+                                .foregroundColor(Color.white.opacity(0.7))
+                                .lineSpacing(4)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        
+                        // --- 3. HOW IT WORKS ---
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("How It Works:")
+                                .font(.custom("ClashDisplay-Bold", size: 16))
+                                .foregroundColor(themeGreen)
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                BulletRowView(text: "Rankings are based on total beats earned during the Leaderboard.")
+                                BulletRowView(text: "Rewards are distributed at the end of each Leaderboard.")
+                                BulletRowView(text: "Currency conversion uses real-time exchange rates from CoinMarketCap.")
+                            }
+                        }
+                        
+                        // --- 4. PAYMENTS ---
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Payments:")
+                                .font(.custom("ClashDisplay-Bold", size: 16))
+                                .foregroundColor(themeGreen)
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                BulletRowView(text: "Rewards are transferred directly to your registered bank account within 5-7 business days after week end.")
+                            }
+                        }
+                    }
+                    .padding(.bottom, 10)
+            }
+            .padding(24)
+            .background(Color(red: 0.07, green: 0.08, blue: 0.07)) // EXACT MATCH: App card background
+            .cornerRadius(24)
+            .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.1), lineWidth: 1))
+            .padding(.horizontal, 20)
+        }
+    }
+}
+
+// 🛠️ HELPER FOR POPUP
+struct BulletRowView: View {
+    let text: String
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text("•")
+                .font(.custom("ClashDisplay-Bold", size: 14))
+                .foregroundColor(Color.white.opacity(0.7))
+            
+            Text(text)
+                .font(.custom("ClashDisplay-Regular", size: 14))
+                .foregroundColor(Color.white.opacity(0.7))
+                .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+// MARK: - Remaining Shared Components
+
 struct PlayerRowView: View {
     var user: LeaderboardPlayer
     var themeGreen: Color
@@ -279,7 +394,7 @@ struct PlayerRowView: View {
             Spacer()
             
             HStack(spacing: 4) {
-                Image(selectedTab == "Beats" ? "beats" : "triangle")
+                Image(selectedTab == "Beats" ? "beats" : "triangle 2")
                     .resizable()
                     .frame(width: 14, height: 14)
                 
@@ -395,7 +510,6 @@ struct SkeletonRowView: View {
     }
 }
 
-// 🛠️ NEW: The Skeleton component for your Square Pagination buttons!
 struct SkeletonPaginationView: View {
     @State private var isAnimating = false
     
