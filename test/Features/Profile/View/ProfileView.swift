@@ -1,12 +1,11 @@
-// test/Features/Profile/View/ProfileView.swift
 import SwiftUI
 
 struct ProfileView: View {
     let shareURL = URL(string: "https://pathpulse.ai/")
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = ProfileViewModel()
-    // 🌟 1. Added the Binding to receive the path from ContentView
     @Binding var path: NavigationPath
+    
     // Custom colors
     let themeGreen = Color(red: 0.3, green: 0.75, blue: 0.4)
     let darkBackground = Color(red: 0.04, green: 0.06, blue: 0.04)
@@ -20,7 +19,6 @@ struct ProfileView: View {
     var buttonBorderColor: Color { Color(red: 0.15, green: 0.35, blue: 0.25) }
     
     var body: some View {
-        // 🌟 2. Bind the Stack to our path variable!
         NavigationStack(path: $path) {
             ZStack {
                 ScrollView {
@@ -28,13 +26,11 @@ struct ProfileView: View {
                         
                         // --- HEADER ---
                         HStack {
-                            // This allows the text to take up the full width, centering it,
-                            // while the icon simply "floats" on the right side.
                             Text("Profile")
                                 .font(.title3)
                                 .fontWeight(.medium)
                                 .foregroundColor(.white)
-                                .frame(maxWidth: .infinity, alignment: .center) // 1. Centers globally
+                                .frame(maxWidth: .infinity, alignment: .center)
                                 .overlay(
                                     HStack {
                                         Spacer()
@@ -44,7 +40,7 @@ struct ProfileView: View {
                                                 .foregroundColor(.white)
                                         }
                                     }
-                                    .padding(.horizontal) // 2. Pins the button to the edge
+                                    .padding(.horizontal)
                                 )
                         }
                         .padding(.top, 10)
@@ -84,7 +80,6 @@ struct ProfileView: View {
                         }
                         
                         // --- WALLET BUTTON ---
-                        // 🌟 4. Changed to value-based navigation link
                         NavigationLink(value: "Wallet") {
                             Text("Wallet")
                                 .font(.headline).foregroundColor(.white)
@@ -100,8 +95,14 @@ struct ProfileView: View {
                         VStack(alignment: .leading, spacing: 15) {
                             Text("Personal").font(.headline).foregroundColor(.white).padding(.horizontal, 20).padding(.top, 10)
                             VStack(spacing: 12) {
-                                ProfileRowView(title: "Tracking Details", hasChevron: true)
-                                ProfileRowView(title: "Vehicle Details", hasChevron: true)
+                                // 🛠️ Navigates to Tracking Details
+                                NavigationLink(value: "TrackingDetails") {
+                                    ProfileRowView(title: "Tracking Details", hasChevron: true)
+                                }
+                                // 🛠️ Navigates to Vehicle Details
+                                NavigationLink(value: "VehicleDetails") {
+                                    ProfileRowView(title: "Vehicle Details", hasChevron: true)
+                                }
                                 ProfileRowView(title: "Connect Fleet", isComingSoon: true)
                             }
                             .padding(.horizontal, 20)
@@ -120,12 +121,15 @@ struct ProfileView: View {
             }
             .applyAppBackground()
             .navigationBarHidden(true)
-            // 🌟 5. Tell the Stack where to go based on the String values!
             .navigationDestination(for: String.self) { destination in
                 if destination == "Settings" {
                     SettingsView()
                 } else if destination == "Wallet" {
-                    WalletView()
+                     WalletView()
+                } else if destination == "TrackingDetails" {
+                    TrackingDetailsView()
+                } else if destination == "VehicleDetails" {
+                    VehicleDetailsView() // 🛠️ Triggers the new view
                 }
             }
             .onAppear {
@@ -137,7 +141,7 @@ struct ProfileView: View {
     }
 }
 
-// --- REUSABLE COMPONENTS REMAIN EXACTLY THE SAME ---
+// --- REUSABLE COMPONENTS ---
 struct ProfileRowView: View {
     var title: String
     var hasChevron: Bool = false
@@ -216,11 +220,4 @@ struct ReferralExpandedCard: View {
             }.padding(.top, 10)
         }.padding(25).background(themeBlack).cornerRadius(24).overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.05), lineWidth: 1)).padding(.horizontal, 20)
     }
-}
-
-// 🌟 Mock the path in the preview to prevent crashes!
-#Preview {
-    ProfileView(path: .constant(NavigationPath()))
-        .environmentObject(AuthViewModel())
-        .preferredColorScheme(.dark)
 }

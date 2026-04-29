@@ -393,8 +393,9 @@ struct PlayerRowView: View {
             
             Spacer()
             
+            // 🛠️ EXACTLY YOUR EXISTING CODE
             HStack(spacing: 4) {
-                Image(selectedTab == "Beats" ? "beats" : "triangle 2")
+                Image(selectedTab == "Beats" ? "beats" : "triangle")
                     .resizable()
                     .frame(width: 14, height: 14)
                 
@@ -402,6 +403,14 @@ struct PlayerRowView: View {
                     .font(.custom("ClashDisplay-Bold", size: 16))
                     .foregroundColor(.white)
             }
+            // 🛠️ ONLY ADDED THESE 5 LINES TO CREATE THE BOX
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color.white.opacity(0.05))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.15), lineWidth: 1)
+            )
         }
         .padding(18)
         .background(isSticky ? Color(red: 0.05, green: 0.07, blue: 0.05) : Color.white.opacity(0.08))

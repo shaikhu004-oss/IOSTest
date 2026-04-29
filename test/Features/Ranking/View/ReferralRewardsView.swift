@@ -4,6 +4,9 @@ struct ReferralRewardsView: View {
     @Binding var isPresented: Bool
     var rewards: [RewardTier]
     
+    @State private var selectedCurrency: Currency = .usd
+    @State private var showCurrencyPopup = false
+    
     let themeBlack = Color(red: 0.04, green: 0.06, blue: 0.04)
     let themeGreen = Color(red: 0.0, green: 1.0, blue: 0.5)
     
@@ -39,16 +42,13 @@ struct ReferralRewardsView: View {
     
     var body: some View {
         ZStack {
-            // Background Dimming
             Color.black.opacity(0.6)
                 .ignoresSafeArea()
                 .onTapGesture {
                     withAnimation(.easeInOut) { isPresented = false }
                 }
             
-            // --- THE SOLID MODAL CARD ---
             VStack(spacing: 0) {
-                // --- HEADER ---
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Referral Rewards")
@@ -73,7 +73,6 @@ struct ReferralRewardsView: View {
                 }
                 .padding(.bottom, 24)
                 
-                // --- TOTAL ROW ---
                 HStack {
                     Text("Total")
                         .font(.custom("ClashDisplay-Bold", size: 18))
@@ -83,7 +82,7 @@ struct ReferralRewardsView: View {
                         .font(.custom("ClashDisplay-Bold", size: 18))
                         .foregroundColor(themeGreen)
                     Spacer()
-                    Text(totalAmount)
+                    Text(selectedCurrency.format(value: rewards.reduce(0) { $0 + $1.value }))
                         .font(.custom("ClashDisplay-Bold", size: 18))
                         .foregroundColor(themeGreen)
                 }
@@ -93,7 +92,6 @@ struct ReferralRewardsView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(themeGreen.opacity(0.4), lineWidth: 1))
                 .padding(.bottom, 24)
                 
-                // --- TABLE HEADERS ---
                 HStack {
                     Text("Rank")
                         .frame(width: 60, alignment: .leading)
@@ -101,25 +99,27 @@ struct ReferralRewardsView: View {
                     Text("USD")
                         .frame(width: 80, alignment: .trailing)
                     Spacer()
-                    HStack(spacing: 4) {
-                        Text("USD")
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 10, weight: .bold))
+                    Button(action: { withAnimation { showCurrencyPopup = true } }) {
+                        HStack(spacing: 4) {
+                            // 🛠️ FIX: Shows 3-letter code here too
+                            Text(selectedCurrency.code)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 10, weight: .bold))
+                        }
+                        .frame(width: 80, alignment: .trailing)
                     }
-                    .frame(width: 80, alignment: .trailing)
                 }
                 .font(.custom("ClashDisplay-Bold", size: 16))
                 .foregroundColor(themeGreen)
                 .padding(.bottom, 16)
                 
-                // --- INNER SCROLLVIEW (Only the list scrolls!) ---
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
                         ForEach(groupedRewards) { group in
-                            // Uses the RewardRow from the other file
                             RewardRow(
                                 rank: group.rankText,
                                 amount: "$\(group.value)",
+                                convertedAmount: selectedCurrency.format(value: group.value),
                                 themeGreen: themeGreen
                             )
                         }
@@ -134,9 +134,11 @@ struct ReferralRewardsView: View {
             .cornerRadius(24)
             .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.1), lineWidth: 1))
             .padding(.horizontal, 20)
-            
-            // 🛠️ THE FIX: Pushes the entire solid modal upward from the bottom nav bar
             .padding(.bottom, 40)
+            
+            if showCurrencyPopup {
+                CurrencyPopupView(selectedCurrency: $selectedCurrency, isPresented: $showCurrencyPopup)
+            }
         }
     }
 }
