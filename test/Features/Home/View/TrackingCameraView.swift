@@ -9,7 +9,7 @@ struct TrackingCameraView: View {
     
     @StateObject private var cameraManager = CameraManager()
     
-    // 🛠️ NEW: State to control if the screen is blacked out
+    // State to control if the screen is blacked out
     @State private var isPreviewHidden = false
     
     var body: some View {
@@ -20,57 +20,62 @@ struct TrackingCameraView: View {
             // Camera Feed
             CameraPreviewView(session: cameraManager.session)
                 .ignoresSafeArea()
-                // 🛠️ THE FIX: Hides the feed (leaving just the black background) without killing the camera
                 .opacity(isPreviewHidden ? 0 : 1)
             
-            // Overlay Buttons
+            // Overlay Bottom Panel
             VStack {
                 Spacer()
                 
-                HStack(spacing: 16) {
-                    // Hide/Show Preview Button
-                    Button(action: {
-                        // 🛠️ Toggles the black screen instead of dismissing the view!
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            isPreviewHidden.toggle()
-                        }
-                    }) {
-                        // Dynamically changes text based on state
-                        Text(isPreviewHidden ? "Show Preview" : "Hide Preview")
-                            .font(.custom("ClashDisplay-Bold", size: 16))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color.black.opacity(0.6))
-                            .clipShape(Capsule())
-                            .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1))
+                VStack(spacing: 20) {
+                    
+                    // 🛠️ NEW: STATS ROW (Matches your image exactly)
+                    HStack(spacing: 12) {
+                        statBox(title: "Beats", value: "0.0")
+                        statBox(title: "Distance", value: "0.00\nkm", isHighlighted: true)
+                        statBox(title: "Time", value: "0 min")
                     }
                     
-                    // Stop Tracking Button (Red Theme)
-                    Button(action: {
-                        onStopTracking() // This still fully stops tracking and dismisses the screen
-                    }) {
-                        Text("Stop Tracking")
-                            .font(.custom("ClashDisplay-Bold", size: 16))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        Color(red: 0.6, green: 0.1, blue: 0.1),
-                                        Color(red: 0.8, green: 0.2, blue: 0.2),
-                                        Color(red: 0.6, green: 0.1, blue: 0.1)
-                                    ]),
-                                    startPoint: .leading, endPoint: .trailing
-                                )
-                            )
-                            .clipShape(Capsule())
-                            .overlay(Capsule().stroke(Color(red: 0.9, green: 0.3, blue: 0.3), lineWidth: 1))
+                    // BUTTONS ROW
+                    HStack(spacing: 16) {
+                        // Hide/Show Preview Button
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                isPreviewHidden.toggle()
+                            }
+                        }) {
+                            Text(isPreviewHidden ? "Show Preview" : "Hide Preview")
+                                .font(.custom("ClashDisplay-Bold", size: 16))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color(red: 0.08, green: 0.09, blue: 0.08))
+                                .clipShape(Capsule())
+                                .overlay(Capsule().stroke(Color.white.opacity(0.15), lineWidth: 1))
+                        }
+                        
+                        // End Tracking Button (Solid Red Theme from Image)
+                        Button(action: {
+                            onStopTracking()
+                        }) {
+                            Text("End Tracking")
+                                .font(.custom("ClashDisplay-Bold", size: 16))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color(red: 0.85, green: 0.05, blue: 0.05)) // Flat Red
+                                .clipShape(Capsule())
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 40)
+                .padding(.top, 24)
+                .padding(.bottom, 10) // Bottom clearance for the home indicator
+                .background(
+                    // Solid dark background for the whole panel
+                    RoundedRectangle(cornerRadius: 32)
+                        .fill(Color(red: 0.05, green: 0.06, blue: 0.05))
+                        .ignoresSafeArea(edges: .bottom)
+                )
             }
         }
         .onAppear {
@@ -79,6 +84,31 @@ struct TrackingCameraView: View {
         .onDisappear {
             cameraManager.stop()
         }
+    }
+    
+    // 🛠️ REUSABLE STAT BOX COMPONENT
+    @ViewBuilder
+    private func statBox(title: String, value: String, isHighlighted: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.custom("ClashDisplay-Bold", size: 15))
+                .foregroundColor(.white)
+            
+            Text(value)
+                .font(.custom("ClashDisplay-Bold", size: 18))
+                .foregroundColor(.white)
+                .lineSpacing(2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 16)
+        .padding(.horizontal, 16)
+        .background(Color(red: 0.08, green: 0.09, blue: 0.08)) // Inner card dark background
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                // Slightly brighter border if highlighted (like the Distance box)
+                .stroke(Color.white.opacity(isHighlighted ? 0.2 : 0.05), lineWidth: 1)
+        )
     }
 }
 
